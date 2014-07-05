@@ -670,7 +670,6 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 
 		/* Draw the Image on the screen */
 		glaDrawPixelsTex(ofs_x, ofs_y, ima_x, ima_y, GL_RGBA, GL_UNSIGNED_BYTE, zoomfilter, ibuf->rect);
-		glPixelTransferf(GL_ALPHA_SCALE, 1.0f);
 
 		glDisable(GL_BLEND);
 

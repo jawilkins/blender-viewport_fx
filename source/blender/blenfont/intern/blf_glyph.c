@@ -429,15 +429,10 @@ void blf_glyph_render(FontBLF *font, GlyphBLF *g, float x, float y)
 			BLI_assert(g->height > 0);
 		}
 
-
-		glPushClientAttrib(GL_CLIENT_PIXEL_STORE_BIT);
-		glPixelStorei(GL_UNPACK_LSB_FIRST, GL_FALSE);
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
-		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
 		glBindTexture(GL_TEXTURE_2D, g->tex);
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 		glTexSubImage2D(GL_TEXTURE_2D, 0, g->xoff, g->yoff, g->width, g->height, GL_ALPHA, GL_UNSIGNED_BYTE, g->bitmap);
-		glPopClientAttrib();
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4); /* restore default */
 
 		g->uv[0][0] = ((float)g->xoff) / ((float)gc->p2_width);
 		g->uv[0][1] = ((float)g->yoff) / ((float)gc->p2_height);

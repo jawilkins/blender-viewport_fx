@@ -1366,7 +1366,7 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 				UI_icon_draw((float)startx + offsx, (float)*starty + 2 * ufac, ICON_LIBRARY_DATA_INDIRECT);
 			else
 				UI_icon_draw((float)startx + offsx, (float)*starty + 2 * ufac, ICON_LIBRARY_DATA_DIRECT);
-			glPixelTransferf(GL_ALPHA_SCALE, 1.0f);
+			glPixelTransferf(GL_ALPHA_SCALE, 1.0f); /* restore default */
 			offsx += UI_UNIT_X;
 		}
 		glDisable(GL_BLEND);
@@ -1399,11 +1399,11 @@ static void outliner_draw_tree_element(bContext *C, uiBlock *block, Scene *scene
 					        *starty + UI_UNIT_Y - 4.0f * ufac);
 					
 					glEnable(GL_BLEND);
-					glPixelTransferf(GL_ALPHA_SCALE, 0.5);
+					glPixelTransferf(GL_ALPHA_SCALE, 0.5f);
 					
 					outliner_draw_iconrow(C, block, scene, soops, &te->subtree, 0, xmax, &tempx, *starty);
 					
-					glPixelTransferf(GL_ALPHA_SCALE, 1.0);
+					glPixelTransferf(GL_ALPHA_SCALE, 1.0f); /* restore default */
 					glDisable(GL_BLEND);
 				}
 			}

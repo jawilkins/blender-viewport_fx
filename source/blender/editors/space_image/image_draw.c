@@ -381,13 +381,14 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, bool color_manage, bool use_d
 
 static void sima_draw_alpha_pixels(float x1, float y1, int rectx, int recty, unsigned int *recti)
 {
-	
-	/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 	if (ENDIAN_ORDER == B_ENDIAN)
-		glPixelStorei(GL_UNPACK_SWAP_BYTES, 1);
+		/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
+		glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_TRUE);
 
 	glaDrawPixelsSafe(x1, y1, rectx, recty, rectx, GL_LUMINANCE, GL_UNSIGNED_INT, recti);
-	glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
+
+	if (ENDIAN_ORDER == B_ENDIAN)
+		glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default */
 }
 
 static void sima_draw_alpha_pixelsf(float x1, float y1, int rectx, int recty, float *rectf)
@@ -413,21 +414,21 @@ static void sima_draw_alpha_pixelsf(float x1, float y1, int rectx, int recty, fl
 static void sima_draw_zbuf_pixels(float x1, float y1, int rectx, int recty, int *recti)
 {
 	/* zbuffer values are signed, so we need to shift color range */
-	glPixelTransferf(GL_RED_SCALE, 0.5f);
+	glPixelTransferf(GL_RED_SCALE,   0.5f);
 	glPixelTransferf(GL_GREEN_SCALE, 0.5f);
-	glPixelTransferf(GL_BLUE_SCALE, 0.5f);
-	glPixelTransferf(GL_RED_BIAS, 0.5f);
-	glPixelTransferf(GL_GREEN_BIAS, 0.5f);
-	glPixelTransferf(GL_BLUE_BIAS, 0.5f);
-	
+	glPixelTransferf(GL_BLUE_SCALE,  0.5f);
+	glPixelTransferf(GL_RED_BIAS,    0.5f);
+	glPixelTransferf(GL_GREEN_BIAS,  0.5f);
+	glPixelTransferf(GL_BLUE_BIAS,   0.5f);
+
 	glaDrawPixelsSafe(x1, y1, rectx, recty, rectx, GL_LUMINANCE, GL_INT, recti);
-	
-	glPixelTransferf(GL_RED_SCALE, 1.0f);
-	glPixelTransferf(GL_GREEN_SCALE, 1.0f);
-	glPixelTransferf(GL_BLUE_SCALE, 1.0f);
-	glPixelTransferf(GL_RED_BIAS, 0.0f);
-	glPixelTransferf(GL_GREEN_BIAS, 0.0f);
-	glPixelTransferf(GL_BLUE_BIAS, 0.0f);
+
+	glPixelTransferf(GL_RED_SCALE,   1.0f); /* restore default */
+	glPixelTransferf(GL_GREEN_SCALE, 1.0f); /* restore default */
+	glPixelTransferf(GL_BLUE_SCALE,  1.0f); /* restore default */
+	glPixelTransferf(GL_RED_BIAS,    0.0f); /* restore default */
+	glPixelTransferf(GL_GREEN_BIAS,  0.0f); /* restore default */
+	glPixelTransferf(GL_BLUE_BIAS,   0.0f); /* restore default */
 }
 
 static void sima_draw_zbuffloat_pixels(Scene *scene, float x1, float y1, int rectx, int recty, float *rect_float)

@@ -1039,11 +1039,6 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 	else {
 		/* for the special case, we can do a partial update
 		 * which is much quicker for painting */
-		GLint row_length, skip_pixels, skip_rows;
-
-		glGetIntegerv(GL_UNPACK_ROW_LENGTH, &row_length);
-		glGetIntegerv(GL_UNPACK_SKIP_PIXELS, &skip_pixels);
-		glGetIntegerv(GL_UNPACK_SKIP_ROWS, &skip_rows);
 
 		/* if color correction is needed, we must update the part that needs updating. */
 		if (ibuf->rect_float) {
@@ -1053,9 +1048,6 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 
 			if (GPU_check_scaled_image(ibuf, ima, buffer, x, y, w, h)) {
 				MEM_freeN(buffer);
-				glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
-				glPixelStorei(GL_UNPACK_SKIP_PIXELS, skip_pixels);
-				glPixelStorei(GL_UNPACK_SKIP_ROWS, skip_rows);
 				BKE_image_release_ibuf(ima, ibuf, NULL);
 				return;
 			}
@@ -1080,25 +1072,32 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 		}
 
 		if (GPU_check_scaled_image(ibuf, ima, NULL, x, y, w, h)) {
-			glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
-			glPixelStorei(GL_UNPACK_SKIP_PIXELS, skip_pixels);
-			glPixelStorei(GL_UNPACK_SKIP_ROWS, skip_rows);
 			BKE_image_release_ibuf(ima, ibuf, NULL);
 			return;
 		}
 
 		glBindTexture(GL_TEXTURE_2D, ima->bindcode);
 
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, ibuf->x);
-		glPixelStorei(GL_UNPACK_SKIP_PIXELS, x);
-		glPixelStorei(GL_UNPACK_SKIP_ROWS, y);
+		if (ibuf->x != 0)
+			glPixelStorei(GL_UNPACK_ROW_LENGTH,  ibuf->x);
+
+		if (x != 0)
+			glPixelStorei(GL_UNPACK_SKIP_PIXELS, x);
+
+		if (y != 0)
+			glPixelStorei(GL_UNPACK_SKIP_ROWS,   y);
 
 		glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h, GL_RGBA,
 			GL_UNSIGNED_BYTE, ibuf->rect);
 
-		glPixelStorei(GL_UNPACK_ROW_LENGTH, row_length);
-		glPixelStorei(GL_UNPACK_SKIP_PIXELS, skip_pixels);
-		glPixelStorei(GL_UNPACK_SKIP_ROWS, skip_rows);
+		if (ibuf->x != 0)
+			glPixelStorei(GL_UNPACK_ROW_LENGTH,  0); /* restore default */
+
+		if (x != 0)
+			glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0); /* restore default */
+
+		if (y != 0)
+			glPixelStorei(GL_UNPACK_SKIP_ROWS,   0); /* restore default */
 
 		/* see comment above as to why we are using gpu mipmap generation here */
 		if (GPU_get_mipmap()) {
@@ -1958,21 +1957,39 @@ void GPU_state_init(void)
 	glDisableClientState(GL_NORMAL_ARRAY);
 	glDisableClientState(GL_COLOR_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	
-	glPixelTransferi(GL_MAP_COLOR, GL_FALSE);
-	glPixelTransferi(GL_RED_SCALE, 1);
-	glPixelTransferi(GL_RED_BIAS, 0);
-	glPixelTransferi(GL_GREEN_SCALE, 1);
-	glPixelTransferi(GL_GREEN_BIAS, 0);
-	glPixelTransferi(GL_BLUE_SCALE, 1);
-	glPixelTransferi(GL_BLUE_BIAS, 0);
-	glPixelTransferi(GL_ALPHA_SCALE, 1);
-	glPixelTransferi(GL_ALPHA_BIAS, 0);
-	
-	glPixelTransferi(GL_DEPTH_BIAS, 0);
-	glPixelTransferi(GL_DEPTH_SCALE, 1);
+
+	//glPixelStorei(GL_PACK_SWAP_BYTES,    GL_FALSE);
+	//glPixelStorei(GL_PACK_LSB_FIRST,     GL_FALSE);
+	//glPixelStorei(GL_PACK_ROW_LENGTH,    0);
+	//glPixelStorei(GL_PACK_SKIP_PIXELS,   0);
+	//glPixelStorei(GL_PACK_SKIP_ROWS,     0);
+	//glPixelStorei(GL_PACK_ALIGNMENT,     4);
+	glPixelStorei(GL_UNPACK_SWAP_BYTES,  GL_FALSE);
+	//glPixelStorei(GL_UNPACK_LSB_FIRST,   GL_FALSE);
+	glPixelStorei(GL_UNPACK_ROW_LENGTH,  0);
+	glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+	glPixelStorei(GL_UNPACK_SKIP_ROWS,   0);
+	glPixelStorei(GL_UNPACK_ALIGNMENT,   4);
+
+#ifdef WITH_GL_PROFILE_COMPAT
+	//glPixelTransferi(GL_MAP_COLOR,    GL_FALSE);
+	//glPixelTransferi(GL_MAP_STENCIL,  GL_FALSE);
+	//glPixelTransferi(GL_INDEX_SHIFT,  0);
+	//glPixelTransferi(GL_INDEX_OFFSET, 0);
+	glPixelTransferf(GL_RED_SCALE,   1.0f);
+	glPixelTransferf(GL_GREEN_SCALE, 1.0f);
+	glPixelTransferf(GL_BLUE_SCALE,  1.0f);
+	glPixelTransferf(GL_ALPHA_SCALE, 1.0f);
+	//glPixelTransferf(GL_DEPTH_SCALE, 1.0f);
+	glPixelTransferf(GL_RED_BIAS,    0.0f);
+	glPixelTransferf(GL_GREEN_BIAS,  0.0f);
+	glPixelTransferf(GL_BLUE_BIAS,   0.0f);
+	//glPixelTransferf(GL_ALPHA_BIAS,  0.0f);
+	//glPixelTransferf(GL_DEPTH_BIAS,  0.0f);
+#endif
+
 	glDepthRange(0.0, 1.0);
-	
+
 	a= 0;
 	for (x=0; x<32; x++) {
 		for (y=0; y<4; y++) {

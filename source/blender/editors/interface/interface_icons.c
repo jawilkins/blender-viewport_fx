@@ -987,9 +987,14 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 		glPixelTransferf(GL_ALPHA_SCALE, alpha);
 
 	if (rgb) {
-		glPixelTransferf(GL_RED_SCALE, rgb[0]);
-		glPixelTransferf(GL_GREEN_SCALE, rgb[1]);
-		glPixelTransferf(GL_BLUE_SCALE, rgb[2]);
+		if (rgb[0] != 1.0f)
+			glPixelTransferf(GL_RED_SCALE,   rgb[0]);
+
+		if (rgb[1] != 1.0f)
+			glPixelTransferf(GL_GREEN_SCALE, rgb[1]);
+
+		if (rgb[2] != 1.0f)
+			glPixelTransferf(GL_BLUE_SCALE,  rgb[2]);
 	}
 
 	/* rect contains image in 'rendersize', we only scale if needed */
@@ -1015,12 +1020,17 @@ static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect),
 
 	/* restore color */
 	if (alpha != 0.0f)
-		glPixelTransferf(GL_ALPHA_SCALE, 1.0f);
-	
+		glPixelTransferf(GL_ALPHA_SCALE, 1.0f); /* restore default */
+
 	if (rgb) {
-		glPixelTransferf(GL_RED_SCALE, 1.0f);
-		glPixelTransferf(GL_GREEN_SCALE, 1.0f);
-		glPixelTransferf(GL_BLUE_SCALE, 1.0f);
+		if (rgb[0] != 1.0f)
+			glPixelTransferf(GL_RED_SCALE,   1.0f); /* restore default */
+
+		if (rgb[1] != 1.0f)
+			glPixelTransferf(GL_GREEN_SCALE, 1.0f); /* restore default */
+
+		if (rgb[2] != 1.0f)
+			glPixelTransferf(GL_BLUE_SCALE,  1.0f); /* restore default */
 	}
 }
 

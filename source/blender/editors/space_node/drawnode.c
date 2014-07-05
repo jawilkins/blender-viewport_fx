@@ -3077,12 +3077,12 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 				glPixelZoom(snode->zoom, snode->zoom);
 				/* swap bytes, so alpha is most significant one, then just draw it as luminance int */
 #ifdef __BIG_ENDIAN__
-				glPixelStorei(GL_UNPACK_SWAP_BYTES, 1);
+				glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_TRUE);
 #endif
 				glaDrawPixelsSafe(x, y, ibuf->x, ibuf->y, ibuf->x, GL_LUMINANCE, GL_UNSIGNED_INT, display_buffer);
 				
 #ifdef __BIG_ENDIAN__
-				glPixelStorei(GL_UNPACK_SWAP_BYTES, 0);
+				glPixelStorei(GL_UNPACK_SWAP_BYTES, GL_FALSE); /* restore default */
 #endif
 				glPixelZoom(1.0f, 1.0f);
 			}
