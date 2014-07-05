@@ -244,7 +244,6 @@ static int rna_Image_gl_load(Image *image, ReportList *reports, int frame, int f
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, image->tpageflag & IMA_CLAMP_V ? GL_CLAMP : GL_REPEAT);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (GLint)filter);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (GLint)mag);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, ibuf->x, ibuf->y, 0, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
 		error = (int)glGetError();
 	}

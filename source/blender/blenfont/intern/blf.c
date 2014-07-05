@@ -505,7 +505,7 @@ void BLF_rotation_default(float angle)
 	}
 }
 
-static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
+static void blf_draw__start(FontBLF *font, GLint *mode)
 {
 	/*
 	 * The pixmap alignment hack is handle
@@ -541,19 +541,10 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 
 	/* always bind the texture for the first glyph */
 	font->tex_bind_state = -1;
-
-	/* Save the current parameter to restore it later. */
-	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
-	if (*param != GL_MODULATE)
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
 
-static void blf_draw__end(GLint mode, GLint param)
+static void blf_draw__end(GLint mode)
 {
-	/* and restore the original value. */
-	if (param != GL_MODULATE)
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
-
 	glMatrixMode(GL_TEXTURE);
 	glPopMatrix();
 
@@ -570,12 +561,12 @@ static void blf_draw__end(GLint mode, GLint param)
 void BLF_draw(int fontid, const char *str, size_t len)
 {
 	FontBLF *font = blf_get(fontid);
-	GLint mode, param;
+	GLint mode;
 
 	if (font && font->glyph_cache) {
-		blf_draw__start(font, &mode, &param);
+		blf_draw__start(font, &mode);
 		blf_font_draw(font, str, len);
-		blf_draw__end(mode, param);
+		blf_draw__end(mode);
 	}
 }
 

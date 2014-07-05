@@ -509,10 +509,6 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 	int texid = get_cached_work_texture(&tex_w, &tex_h);
 	int components;
 
-	/* Specify the color outside this function, and tex will modulate it.
-	 * This is useful for changing alpha without using glPixelTransferf()
-	 */
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, img_w);
 	glBindTexture(GL_TEXTURE_2D, texid);
 
@@ -621,8 +617,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 
 	glBindTexture(GL_TEXTURE_2D, ltexid);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, lrowlength);
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	
+
 #ifdef __APPLE__
 	/* workaround for os x 10.5/10.6 driver bug (above) */
 	glPixelZoom(xzoom, yzoom);
@@ -1080,7 +1075,6 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 		}
 
 		if (ok) {
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 			glColor4f(1.0, 1.0, 1.0, 1.0);
 
 			if (ibuf->rect_float) {

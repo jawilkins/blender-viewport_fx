@@ -761,8 +761,6 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float *frect, int 
 
 	if (GLEW_EXT_texture_filter_anisotropic)
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, GPU_get_anisotropic());
-	/* set to modulate with vertex color */
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 	if (scalerect)
 		MEM_freeN(scalerect);
@@ -805,8 +803,6 @@ bool GPU_upload_dxt_texture(ImBuf *ibuf)
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gpu_get_mipmap_filter(0));
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gpu_get_mipmap_filter(1));
-
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
 	if (GLEW_EXT_texture_filter_anisotropic)
 		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, GPU_get_anisotropic());
