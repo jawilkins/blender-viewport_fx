@@ -156,6 +156,9 @@ void GPU_create_smoke(struct SmokeModifierData *smd, int highres);
 /* Delayed free of OpenGL buffers by main thread */
 void GPU_free_unused_buffers(void);
 
+/* Multisampling Toggle */
+void GPU_multisample(bool enable);
+
 #ifdef __cplusplus
 }
 #endif

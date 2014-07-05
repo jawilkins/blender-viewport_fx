@@ -1890,6 +1890,37 @@ int GPU_scene_object_lights(Scene *scene, Object *ob, int lay, float viewmat[4][
 	return count;
 }
 
+void GPU_multisample(bool enable)
+{
+	if (GLEW_VERSION_1_3 || GLEW_ARB_multisample) {
+#if __linux__
+		/* changing multisample enablement from the default (enabled) causes problems on some
+		   systems (NVIDIA/Linux) when the pixel format doesn't have a multisample buffer */
+		bool toggle_ok = true;
+
+		if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_UNIX, GPU_DRIVER_ANY)) {
+			int samples = 0;
+			glGetIntegerv(GL_SAMPLES, &samples);
+
+			if (samples == 0)
+				toggle_ok = false;
+		}
+
+		if (toggle_ok) {
+			if (enable)
+				glEnable(GL_MULTISAMPLE);
+			else
+				glDisable(GL_MULTISAMPLE);
+		}
+#else
+		if (enable)
+			glEnable(GL_MULTISAMPLE);
+		else
+			glDisable(GL_MULTISAMPLE);
+#endif
+	}
+}
+
 /* Default OpenGL State */
 
 void GPU_state_init(void)
@@ -1964,24 +1995,7 @@ void GPU_state_init(void)
 	glCullFace(GL_BACK);
 	glDisable(GL_CULL_FACE);
 
-	/* MULTISAMPLE is enabled by GL by default, but Blender needs to disable it by default
-	   it will be enabled only by drawing code that needs it
-	   apparently however, doing that makes drawing very slow when AA is not set up in GHOST on Linux/NVIDIA
-	   so, let's check for that and leave it enabled in that case */
-	if (GLEW_VERSION_1_3 || GLEW_ARB_multisample) {
-		bool disable_ok = true;
-
-		if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_UNIX, GPU_DRIVER_ANY)) {
-			int samples = 0;
-			glGetIntegerv(GL_SAMPLES, &samples);
-
-			if (samples == 0)
-				disable_ok = false; // AA not set up, so it isn't OK to disable
-		}
-
-		if (disable_ok)
-			glDisable(GL_MULTISAMPLE);
-	}
+	GPU_multisample(false);
 
 	/* make sure double side isn't used by default and only getting enabled in places where it's
 	 * really needed to prevent different unexpected behaviors like with intel gme965 card (sergey) */
