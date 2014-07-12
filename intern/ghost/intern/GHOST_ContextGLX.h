@@ -25,61 +25,54 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file ghost/intern/GHOST_ContextCGL.h
+/** \file ghost/intern/GHOST_ContextGLX.h
  *  \ingroup GHOST
- * Declaration of GHOST_ContextCGL class.
+ * Declaration of GHOST_ContextGLX class.
  */
 
-#ifndef _GHOST_CONTEXTCGL_H_
-#define _GHOST_CONTEXTCGL_H_
+#ifndef _GHOST_CONTEXTGLX_H_
+#define _GHOST_CONTEXTGLX_H_
 
 #include "GHOST_Context.h"
 
-//#define cglewGetContext() cglewContext
-//#include <GL/cglew.h>
-//extern "C" CGLEWContext* cglewContext;
+#define glxewGetContext() glxewContext
+#include <GL/glxew.h>
+extern "C" GLXEWContext* glxewContext;
 
 
 
-#ifndef GHOST_OPENGL_CGL_CONTEXT_FLAGS
-#define GHOST_OPENGL_CGL_CONTEXT_FLAGS 0
+#ifndef GHOST_OPENGL_GLX_CONTEXT_FLAGS
+#define GHOST_OPENGL_GLX_CONTEXT_FLAGS 0
 #endif
 
-#ifndef GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY
-#define GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY 0
+#ifndef GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY
+#define GHOST_OPENGL_GLX_RESET_NOTIFICATION_STRATEGY 0
 #endif
 
 
 
-@class NSWindow;
-@class NSOpenGLView;
-@class NSOpenGLContext;
-
-
-
-class GHOST_ContextCGL : public GHOST_Context
+class GHOST_ContextGLX : public GHOST_Context
 {
 public:
 	/**
 	 * Constructor.
 	 */
-	GHOST_ContextCGL(
-		bool          stereoVisual,
-		GHOST_TUns16  numOfAASamples,
-		NSWindow     *window,
-		NSOpenGLView *openGLView,
-		int           contextProfileMask,
-		int           contextMajorVersion,
-		int           contextMinorVersion,
-		int           contextFlags,
-		int           contextResetNotificationStrategy
+	GHOST_ContextGLX(
+		bool         stereoVisual,
+		GHOST_TUns16 numOfAASamples,
+		Window       window,
+		Display*     display,
+		int          contextProfileMask,
+		int          contextMajorVersion,
+		int          contextMinorVersion,
+		int          contextFlags,
+		int          contextResetNotificationStrategy
 	);
-
 
 	/**
 	 * Destructor.
 	 */
-	virtual ~GHOST_ContextCGL();
+	virtual ~GHOST_ContextGLX();
 
 	/**
 	 * Swaps front and back buffers of a window.
@@ -117,28 +110,18 @@ public:
 	 * \param intervalOut Variable to store the swap interval if it can be read.
 	 * \return Whether the swap interval can be read.
 	 */
-	virtual GHOST_TSuccess getSwapInterval(int&);
+	virtual GHOST_TSuccess getSwapInterval(int& intervalOut);
 
-	/**
-	 * Updates the drawing context of this window.
-	 * Needed whenever the window is changed.
-	 * \return Indication of success.
-	 */
-	virtual GHOST_TSuccess updateDrawingContext();
-
-//protected:
-//	inline void activateCGLEW() const {
-//		cglewContext = m_cglewContext;
-//	}
+protected:
+	inline void activateGLXEW() const {
+		glxewContext = m_glxewContext;
+	}
 
 private:
-	//void initContextCGLEW()
+	void initContextGLXEW();
 
-	/** The window containing the OpenGL view */
-	NSWindow *m_window;
-	
-	/** The openGL view */
-	NSOpenGLView *m_openGLView; 
+	Display *m_display;
+	Window   m_window;
 
 	const int m_contextProfileMask;
 	const int m_contextMajorVersion;
@@ -146,16 +129,17 @@ private:
 	const int m_contextFlags;
 	const int m_contextResetNotificationStrategy;
 
-	/** The opgnGL drawing context */
-	NSOpenGLContext *m_openGLContext;
-	
-	//static CGLEWContext* s_cglewContext;
+	XVisualInfo *m_visualInfo;
+
+	GLXContext m_context;
+
+	GLXEWContext* m_glxewContext;
 
 	/** The first created OpenGL context (for sharing display lists) */
-	static NSOpenGLContext *s_sharedOpenGLContext;	
-	static int              s_sharedCount;
+	static GLXContext s_sharedContext;
+	static int        s_sharedCount;
 };
 
 
 
-#endif // _GHOST_CONTEXTCGL_H_
+#endif // _GHOST_CONTEXTGLX_H_
