@@ -321,10 +321,6 @@ elseif(WIN32)
 		intern/GHOST_SystemPathsWin32.cpp
 		intern/GHOST_SystemPathsWin32.h
 	)
-
-	list(APPEND INC
-		../utfconv
-	)
 endif()
 
 add_definitions(${GL_DEFINITIONS})
