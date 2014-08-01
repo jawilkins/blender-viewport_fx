@@ -48,7 +48,7 @@ private:
 	void		AnalyseShader(int passindex, std::vector<STR_String>& propNames);
 	void			StartShaderProgram(int passindex);
 	void			EndShaderProgram();
-	void			PrintShaderErrors(unsigned int shader, const char *task, const char *code);
+	void			PrintShaderErrors(unsigned int shader, const char *task, const char *code, bool is_program);
 
 	void SetupTextures(bool depth, bool luminance);
 	void FreeTextures();

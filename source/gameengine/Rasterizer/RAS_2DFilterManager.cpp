@@ -53,8 +53,8 @@ RAS_2DFilterManager::RAS_2DFilterManager():
 texturewidth(-1), textureheight(-1),
 /* numberoffilters(0), */ /* UNUSED */ need_tex_update(true)
 {
-	isshadersupported = GLEW_ARB_shader_objects &&
-		GLEW_ARB_fragment_shader && GLEW_ARB_multitexture;
+	isshadersupported = MX_shader_objects &&
+		MX_fragment_shader && MX_multitexture;
 
 	/* used to return before 2.49 but need to initialize values so don't */
 	if (!isshadersupported)
@@ -77,73 +77,88 @@ RAS_2DFilterManager::~RAS_2DFilterManager()
 	FreeTextures();
 }
 
-void RAS_2DFilterManager::PrintShaderErrors(unsigned int shader, const char *task, const char *code)
+void RAS_2DFilterManager::PrintShaderErrors(unsigned int shader, const char *task, const char *code, bool is_program)
 {
-	GLcharARB log[5000];
-	GLsizei length = 0;
-	const char *c, *pos, *end;
-	int line = 1;
+	GLint log_size = 0;
 
 	if (errorprinted)
 		return;
-	
+
 	errorprinted= true;
 
-	glGetInfoLogARB(shader, sizeof(log), &length, log);
-	end = code + strlen(code);
+	if (is_program)
+		glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &log_size);
+	else
+		glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_size);
 
-	printf("2D Filter GLSL Shader: %s error:\n", task);
+	if (log_size > 0) {
+		const char *c, *pos, *end;
+		int line = 1;
+		GLsizei length = 0;
+		GLchar* log = new GLchar[log_size];
 
-	c = code;
-	while ((c < end) && (pos = strchr(c, '\n'))) {
-		printf("%2d  ", line);
-		fwrite(c, (pos+1)-c, 1, stdout);
-		c = pos+1;
-		line++;
+		if (is_program)
+			glGetProgramInfoLog(shader, sizeof(log), &length, log);
+		else
+			glGetShaderInfoLog(shader, sizeof(log), &length, log);
+
+		end = code + strlen(code);
+
+		printf("2D Filter GLSL Shader: %s error:\n", task);
+
+		c = code;
+		while ((c < end) && (pos = strchr(c, '\n'))) {
+			printf("%2d  ", line);
+			fwrite(c, (pos+1)-c, 1, stdout);
+			c = pos+1;
+			line++;
+		}
+
+		puts(c);
+		puts(log);
+		puts("\n");
+
+		delete[] log;
 	}
-
-	puts(c);
-	puts(log);
-	puts("\n");
 }
 
 unsigned int RAS_2DFilterManager::CreateShaderProgram(const char* shadersource)
 {
 	GLuint program = 0;
-	GLuint fShader = glCreateShaderObjectARB(GL_FRAGMENT_SHADER);
+	GLuint fShader = glCreateShader(GL_FRAGMENT_SHADER);
 	GLint success;
 
-	glShaderSourceARB(fShader, 1, (const char**)&shadersource, NULL);
+	glShaderSource(fShader, 1, (const char**)&shadersource, NULL);
 
-	glCompileShaderARB(fShader);
+	glCompileShader(fShader);
 
 
-	glGetObjectParameterivARB(fShader, GL_COMPILE_STATUS, &success);
+	glGetShaderiv(fShader, GL_COMPILE_STATUS, &success);
 	if (!success)
 	{
 		/*Shader Comile Error*/
-		PrintShaderErrors(fShader, "compile", shadersource);
+		PrintShaderErrors(fShader, "compile", shadersource, false);
 		return 0;
 	}
 		
-	program = glCreateProgramObjectARB();
-	glAttachObjectARB(program, fShader);
+	program = glCreateProgram();
+	glAttachShader(program, fShader);
 
-	glLinkProgramARB(program);
-	glGetObjectParameterivARB(program, GL_LINK_STATUS, &success);
+	glLinkProgram(program);
+	glGetProgramiv(program, GL_LINK_STATUS, &success);
 	if (!success)
 	{
 		/*Program Link Error*/
-		PrintShaderErrors(fShader, "link", shadersource);
+		PrintShaderErrors(program, "link", shadersource, true);
 		return 0;
 	}
 	
-	glValidateProgramARB(program);
-	glGetObjectParameterivARB(program, GL_VALIDATE_STATUS, &success);
+	glValidateProgram(program);
+	glGetProgramiv(program, GL_VALIDATE_STATUS, &success);
 	if (!success)
 	{
 		/*Program Validation Error*/
-		PrintShaderErrors(fShader, "validate", shadersource);
+		PrintShaderErrors(program, "validate", shadersource, true);
 		return 0;
 	}
 
@@ -180,12 +195,12 @@ unsigned int RAS_2DFilterManager::CreateShaderProgram(int filtermode)
 void RAS_2DFilterManager::AnalyseShader(int passindex, vector<STR_String>& propNames)
 {
 	texflag[passindex] = 0;
-	if (glGetUniformLocationARB(m_filters[passindex], "bgl_DepthTexture") != -1)
+	if (glGetUniformLocation(m_filters[passindex], "bgl_DepthTexture") != -1)
 	{
 		if (GLEW_ARB_depth_texture)
 			texflag[passindex] |= 0x1;
 	}
-	if (glGetUniformLocationARB(m_filters[passindex], "bgl_LuminanceTexture") != -1)
+	if (glGetUniformLocation(m_filters[passindex], "bgl_LuminanceTexture") != -1)
 	{
 		texflag[passindex] |= 0x2;
 	}
@@ -195,7 +210,7 @@ void RAS_2DFilterManager::AnalyseShader(int passindex, vector<STR_String>& propN
 		int objProperties = propNames.size();
 		int i;
 		for (i=0; i<objProperties; i++)
-			if (glGetUniformLocationARB(m_filters[passindex], propNames[i]) != -1)
+			if (glGetUniformLocation(m_filters[passindex], propNames[i]) != -1)
 				m_properties[passindex].push_back(propNames[i]);
 	}
 }
@@ -203,71 +218,71 @@ void RAS_2DFilterManager::AnalyseShader(int passindex, vector<STR_String>& propN
 void RAS_2DFilterManager::StartShaderProgram(int passindex)
 {
 	GLint uniformLoc;
-	glUseProgramObjectARB(m_filters[passindex]);
-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_RenderedTexture");
-	glActiveTextureARB(GL_TEXTURE0);
+	glUseProgram(m_filters[passindex]);
+	uniformLoc = glGetUniformLocation(m_filters[passindex], "bgl_RenderedTexture");
+	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texname[0]);
 
 	if (uniformLoc != -1)
 	{
-		glUniform1iARB(uniformLoc, 0);
+		glUniform1i(uniformLoc, 0);
 	}
 
 	/* send depth texture to glsl program if it needs */
 	if (texflag[passindex] & 0x1) {
-		uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_DepthTexture");
-		glActiveTextureARB(GL_TEXTURE1);
+		uniformLoc = glGetUniformLocation(m_filters[passindex], "bgl_DepthTexture");
+		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, texname[1]);
 
 		if (uniformLoc != -1)
 		{
-			glUniform1iARB(uniformLoc, 1);
+			glUniform1i(uniformLoc, 1);
 		}
 	}
 
 	/* send luminance texture to glsl program if it needs */
 	if (texflag[passindex] & 0x2) {
-		uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_LuminanceTexture");
-		glActiveTextureARB(GL_TEXTURE2);
+		uniformLoc = glGetUniformLocation(m_filters[passindex], "bgl_LuminanceTexture");
+		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, texname[2]);
 
 		if (uniformLoc != -1)
 		{
-			glUniform1iARB(uniformLoc, 2);
+			glUniform1i(uniformLoc, 2);
 		}
 	}
 	
-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_TextureCoordinateOffset");
+	uniformLoc = glGetUniformLocation(m_filters[passindex], "bgl_TextureCoordinateOffset");
 	if (uniformLoc != -1)
 	{
-		glUniform2fvARB(uniformLoc, 9, textureoffsets);
+		glUniform2fv(uniformLoc, 9, textureoffsets);
 	}
-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_RenderedTextureWidth");
+	uniformLoc = glGetUniformLocation(m_filters[passindex], "bgl_RenderedTextureWidth");
 	if (uniformLoc != -1)
 	{
-		glUniform1fARB(uniformLoc,texturewidth);
+		glUniform1f(uniformLoc,texturewidth);
 	}
-	uniformLoc = glGetUniformLocationARB(m_filters[passindex], "bgl_RenderedTextureHeight");
+	uniformLoc = glGetUniformLocation(m_filters[passindex], "bgl_RenderedTextureHeight");
 	if (uniformLoc != -1)
 	{
-		glUniform1fARB(uniformLoc,textureheight);
+		glUniform1f(uniformLoc,textureheight);
 	}
 
 	int i, objProperties = m_properties[passindex].size();
 	for (i=0; i<objProperties; i++)
 	{
-		uniformLoc = glGetUniformLocationARB(m_filters[passindex], m_properties[passindex][i]);
+		uniformLoc = glGetUniformLocation(m_filters[passindex], m_properties[passindex][i]);
 		if (uniformLoc != -1)
 		{
 			float value = ((CValue*)m_gameObjects[passindex])->GetPropertyNumber(m_properties[passindex][i], 0.0);
-			glUniform1fARB(uniformLoc,value);
+			glUniform1f(uniformLoc,value);
 		}
 	}
 }
 
 void RAS_2DFilterManager::EndShaderProgram()
 {
-	glUseProgramObjectARB(0);
+	glUseProgram(0);
 }
 
 void RAS_2DFilterManager::FreeTextures()
@@ -410,19 +425,19 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 	}
 
 	if (need_depth) {
-		glActiveTextureARB(GL_TEXTURE1);
+		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, texname[1]);
 		glCopyTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT, viewport[0], viewport[1], viewport[2], viewport[3], 0);
 	}
 	
 	if (need_luminance) {
-		glActiveTextureARB(GL_TEXTURE2);
+		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, texname[2]);
 		glCopyTexImage2D(GL_TEXTURE_2D,0,GL_LUMINANCE16, viewport[0], viewport[1], viewport[2], viewport[3], 0);
 	}
 
 	// reverting to texunit 0, without this we get bug [#28462]
-	glActiveTextureARB(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE0);
 
 	// We do this to make side-by-side stereo rendering work correctly with 2D filters. It would probably be nicer to just set the viewport,
 	// but it can be easier for writing shaders to have the coordinates for the whole screen instead of just part of the screen. 
@@ -455,17 +470,16 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 		{
 			StartShaderProgram(passindex);
 
-			glActiveTextureARB(GL_TEXTURE0);
 			glBindTexture(GL_TEXTURE_2D, texname[0]);
 			glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, viewport[0], viewport[1], viewport[2], viewport[3], 0); // Don't use texturewidth and textureheight in case we don't have NPOT support
 			glClear(GL_COLOR_BUFFER_BIT);
 
 			glBegin(GL_QUADS);
 				glColor4f(1.f, 1.f, 1.f, 1.f);
-				glTexCoord2f(1.0, 1.0);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[1], canvascoord[3]); glVertex2f(1,1);
-				glTexCoord2f(0.0, 1.0);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[0], canvascoord[3]); glVertex2f(-1,1);
-				glTexCoord2f(0.0, 0.0);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[0], canvascoord[2]); glVertex2f(-1,-1);
-				glTexCoord2f(1.0, 0.0);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[1], canvascoord[2]); glVertex2f(1,-1);
+				glTexCoord2f(1.0, 1.0);	glMultiTexCoord2f(GL_TEXTURE3, canvascoord[1], canvascoord[3]); glVertex2f(1,1);
+				glTexCoord2f(0.0, 1.0);	glMultiTexCoord2f(GL_TEXTURE3, canvascoord[0], canvascoord[3]); glVertex2f(-1,1);
+				glTexCoord2f(0.0, 0.0);	glMultiTexCoord2f(GL_TEXTURE3, canvascoord[0], canvascoord[2]); glVertex2f(-1,-1);
+				glTexCoord2f(1.0, 0.0);	glMultiTexCoord2f(GL_TEXTURE3, canvascoord[1], canvascoord[2]); glVertex2f(1,-1);
 			glEnd();
 		}
 	}
@@ -499,7 +513,7 @@ void RAS_2DFilterManager::EnableFilter(vector<STR_String>& propNames, void* game
 	if (mode == RAS_2DFILTER_NOFILTER)
 	{
 		if (m_filters[pass])
-			glDeleteObjectARB(m_filters[pass]);
+			glDeleteProgram(m_filters[pass]);
 		m_enabled[pass] = 0;
 		m_filters[pass] = 0;
 		m_gameObjects[pass] = NULL;
@@ -511,7 +525,7 @@ void RAS_2DFilterManager::EnableFilter(vector<STR_String>& propNames, void* game
 	if (mode == RAS_2DFILTER_CUSTOMFILTER)
 	{
 		if (m_filters[pass])
-			glDeleteObjectARB(m_filters[pass]);
+			glDeleteProgram(m_filters[pass]);
 		m_filters[pass] = CreateShaderProgram(text.Ptr());
 		m_gameObjects[pass] = gameObj;
 		AnalyseShader(pass, propNames);
@@ -521,7 +535,7 @@ void RAS_2DFilterManager::EnableFilter(vector<STR_String>& propNames, void* game
 
 	// We've checked all other cases, which means we must be dealing with a builtin filter
 	if (m_filters[pass])
-		glDeleteObjectARB(m_filters[pass]);
+		glDeleteProgram(m_filters[pass]);
 	m_filters[pass] = CreateShaderProgram(mode);
 	m_gameObjects[pass] = NULL;
 	AnalyseShader(pass, propNames);

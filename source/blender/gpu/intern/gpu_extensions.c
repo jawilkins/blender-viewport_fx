@@ -122,6 +122,56 @@ int GPU_max_texture_size(void)
 	return GG.maxtexsize;
 }
 
+/*
+Computes the maximum number of textures 'n' that
+can be referenced by ActiveTexture(TEXTURE0+n-1)
+
+This is for any use of ActiveTexture.
+
+Individual limits, such as for the multitexture extension, gl_TexCoord,
+vertex shaders, fragment shader, etc. will each have different limits.
+*/
+static GLint get_max_textures(void)
+{
+	GLint maxTextureUnits;
+	GLint maxTextureCoords;
+	GLint maxCombinedTextureImageUnits;
+
+	/* There has to be at least one texture so count that here */
+	maxTextureUnits = 1;
+
+#ifndef GLEW_ES_ONLY
+	if (MX_profile_compatibility && MX_multitexture) {
+		/* Multitexture typically supports only 2 or 4 texture stages even on modern hardware. */
+		glGetIntegerv(GL_MAX_TEXTURE_UNITS, &maxTextureUnits);
+	}
+#endif
+
+	/* Set to zero here in case they do not get set later */
+	maxTextureCoords             = 0;
+	maxCombinedTextureImageUnits = 0;
+
+	if (MX_fragment_shader) {
+#ifndef GLEW_ES_ONLY
+		if (MX_profile_compatibility) {
+			/* size of gl_TexCoord array in GLSL */
+			glGetIntegerv(GL_MAX_TEXTURE_COORDS, &maxTextureCoords);
+		}
+#endif
+
+		/* Number of textures accessible by vertex, fragment, and geometry shaders combined. */
+		/* Individually the limits for each of those programmable units may be smaller. */
+		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxCombinedTextureImageUnits);
+	}
+
+	return MAX3(maxTextureUnits, maxTextureCoords, maxCombinedTextureImageUnits);
+}
+
+int GPU_max_textures(void)
+{
+	return GG.maxtextures;
+}
+
 void gpu_extensions_init(void)
 {
 	GLint r, g, b;
@@ -129,15 +179,15 @@ void gpu_extensions_init(void)
 
 	/* glewIsSupported("GL_VERSION_2_0") */
 
-	if (GLEW_ARB_multitexture)
-		glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS_ARB, &GG.maxtextures);
+	GG.maxtextures = get_max_textures();
 
 	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &GG.maxtexsize);
 
-	GG.glslsupport = 1;
-	if (!GLEW_ARB_multitexture) GG.glslsupport = 0;
-	if (!GLEW_ARB_vertex_shader) GG.glslsupport = 0;
-	if (!GLEW_ARB_fragment_shader) GG.glslsupport = 0;
+	GG.glslsupport =
+		GLEW_VERSION_2_0    ||
+		GLEW_ES_VERSION_2_0 ||
+		(MX_multitexture  && MX_shader_objects && MX_vertexattrib &&
+		 MX_vertex_shader && MX_fragment_shader);
 
 	glGetIntegerv(GL_RED_BITS, &r);
 	glGetIntegerv(GL_GREEN_BITS, &g);
@@ -274,30 +324,30 @@ static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
 	const char *err= "unknown";
 
 	switch (status) {
-		case GL_FRAMEBUFFER_COMPLETE_EXT:
+		case GL_FRAMEBUFFER_COMPLETE:
 			break;
 		case GL_INVALID_OPERATION:
 			err= "Invalid operation";
 			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT_EXT:
+		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
 			err= "Incomplete attachment";
 			break;
-		case GL_FRAMEBUFFER_UNSUPPORTED_EXT:
+		case GL_FRAMEBUFFER_UNSUPPORTED:
 			err= "Unsupported framebuffer format";
 			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT_EXT:
+		case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
 			err= "Missing attachment";
 			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS_EXT:
+		case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
 			err= "Attached images must have same dimensions";
 			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_FORMATS_EXT:
+		case GL_FRAMEBUFFER_INCOMPLETE_FORMATS:
 			err= "Attached images must have same format";
 			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER_EXT:
+		case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
 			err= "Missing draw buffer";
 			break;
-		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER_EXT:
+		case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
 			err= "Missing read buffer";
 			break;
 	}
@@ -729,25 +779,25 @@ void GPU_texture_bind(GPUTexture *tex, int number)
 {
 	GLenum arbnumber;
 
+	if (GG.extdisabled || number == -1)
+		return;
+
 	if (number >= GG.maxtextures) {
 		GPU_print_error("Not enough texture slots.");
 		return;
 	}
 
-	if (number == -1)
-		return;
-
 	GPU_print_error("Pre Texture Bind");
 
-	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + number);
-	if (number != 0) glActiveTextureARB(arbnumber);
+	arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + number);
+	if (number != 0) glActiveTexture(arbnumber);
 	if (tex->bindcode != 0) {
 		glBindTexture(tex->target, tex->bindcode);
 	}
 	else
 		GPU_invalid_tex_bind(tex->target);
 	glEnable(tex->target);
-	if (number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
+	if (number != 0) glActiveTexture(GL_TEXTURE0);
 
 	tex->number = number;
 
@@ -758,21 +808,21 @@ void GPU_texture_unbind(GPUTexture *tex)
 {
 	GLenum arbnumber;
 
+	if (GG.extdisabled || tex->number == -1)
+		return;
+
 	if (tex->number >= GG.maxtextures) {
 		GPU_print_error("Not enough texture slots.");
 		return;
 	}
 
-	if (tex->number == -1)
-		return;
-	
 	GPU_print_error("Pre Texture Unbind");
 
-	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
-	if (tex->number != 0) glActiveTextureARB(arbnumber);
+	arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + tex->number);
+	if (tex->number != 0) glActiveTexture(arbnumber);
 	glBindTexture(tex->target, 0);
 	glDisable(tex->target);
-	if (tex->number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
+	if (tex->number != 0) glActiveTexture(GL_TEXTURE0);
 
 	tex->number = -1;
 
@@ -838,11 +888,11 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 {
 	GPUFrameBuffer *fb;
 
-	if (!GLEW_EXT_framebuffer_object)
+	if (GG.extdisabled || !MX_framebuffer_object)
 		return NULL;
-	
+
 	fb= MEM_callocN(sizeof(GPUFrameBuffer), "GPUFrameBuffer");
-	glGenFramebuffersEXT(1, &fb->object);
+	glGenFramebuffers(1, &fb->object);
 
 	if (!fb->object) {
 		fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed. %d\n",
@@ -860,15 +910,18 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err
 	GLenum attachment;
 	GLenum error;
 
-	if (tex->depth)
-		attachment = GL_DEPTH_ATTACHMENT_EXT;
-	else
-		attachment = GL_COLOR_ATTACHMENT0_EXT;
+	if (GG.extdisabled || !MX_framebuffer_object)
+		return 0;
 
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	if (tex->depth)
+		attachment = GL_DEPTH_ATTACHMENT;
+	else
+		attachment = GL_COLOR_ATTACHMENT0;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
 	GG.currentfb = fb->object;
 
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment, 
+	glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, 
 		tex->target, tex->bindcode, 0);
 
 	error = glGetError();
@@ -884,13 +937,13 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err
 		glReadBuffer(GL_NONE);
 	}
 	else {
-		glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT);
-		glReadBuffer(GL_COLOR_ATTACHMENT0_EXT);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+		glReadBuffer(GL_COLOR_ATTACHMENT0);
 	}
 
-	status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+	status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
-	if (status != GL_FRAMEBUFFER_COMPLETE_EXT) {
+	if (status != GL_FRAMEBUFFER_COMPLETE) {
 		GPU_framebuffer_restore();
 		GPU_print_framebuffer_error(status, err_out);
 		return 0;
@@ -910,24 +963,27 @@ void GPU_framebuffer_texture_detach(GPUFrameBuffer *fb, GPUTexture *tex)
 {
 	GLenum attachment;
 
+	if (GG.extdisabled || !MX_framebuffer_object)
+		return;
+
 	if (!tex->fb)
 		return;
 
 	if (GG.currentfb != tex->fb->object) {
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, tex->fb->object);
+		glBindFramebuffer(GL_FRAMEBUFFER, tex->fb->object);
 		GG.currentfb = tex->fb->object;
 	}
 
 	if (tex->depth) {
 		fb->depthtex = NULL;
-		attachment = GL_DEPTH_ATTACHMENT_EXT;
+		attachment = GL_DEPTH_ATTACHMENT;
 	}
 	else {
 		fb->colortex = NULL;
-		attachment = GL_COLOR_ATTACHMENT0_EXT;
+		attachment = GL_COLOR_ATTACHMENT0;
 	}
 
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, attachment,
+	glFramebufferTexture2D(GL_FRAMEBUFFER, attachment,
 		tex->target, 0, 0);
 
 	tex->fb = NULL;
@@ -940,7 +996,8 @@ void GPU_framebuffer_texture_bind(GPUFrameBuffer *UNUSED(fb), GPUTexture *tex, i
 	glDisable(GL_SCISSOR_TEST);
 
 	/* bind framebuffer */
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, tex->fb->object);
+	if (!GG.extdisabled && MX_framebuffer_object)
+		glBindFramebuffer(GL_FRAMEBUFFER, tex->fb->object);
 
 	/* push matrices and set default viewport and matrix */
 	glViewport(0, 0, w, h);
@@ -967,16 +1024,19 @@ void GPU_framebuffer_texture_unbind(GPUFrameBuffer *UNUSED(fb), GPUTexture *UNUS
 
 void GPU_framebuffer_free(GPUFrameBuffer *fb)
 {
+	if (GG.extdisabled || !MX_framebuffer_object)
+		return;
+
 	if (fb->depthtex)
 		GPU_framebuffer_texture_detach(fb, fb->depthtex);
 	if (fb->colortex)
 		GPU_framebuffer_texture_detach(fb, fb->colortex);
 
 	if (fb->object) {
-		glDeleteFramebuffersEXT(1, &fb->object);
+		glDeleteFramebuffers(1, &fb->object);
 
 		if (GG.currentfb == fb->object) {
-			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			GG.currentfb = 0;
 		}
 	}
@@ -986,8 +1046,11 @@ void GPU_framebuffer_free(GPUFrameBuffer *fb)
 
 void GPU_framebuffer_restore(void)
 {
+	if (GG.extdisabled || !MX_framebuffer_object)
+		return;
+
 	if (GG.currentfb != 0) {
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		GG.currentfb = 0;
 	}
 }
@@ -1010,7 +1073,8 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 
 	/* We do the bind ourselves rather than using GPU_framebuffer_texture_bind() to avoid
 	 * pushing unnecessary matrices onto the OpenGL stack. */
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, blurfb->object);
+	if (!GG.extdisabled && MX_framebuffer_object)
+		glBindFramebuffer(GL_FRAMEBUFFER, blurfb->object);
 
 	GPU_shader_bind(blur_shader);
 	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, (float *)scaleh);
@@ -1039,7 +1103,9 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 		
 	/* Blurring vertically */
 
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
+	if (!GG.extdisabled && MX_framebuffer_object)
+		glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
+
 	glViewport(0, 0, GPU_texture_opengl_width(tex), GPU_texture_opengl_height(tex));
 	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, (float *)scalev);
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
@@ -1151,33 +1217,83 @@ int GPU_offscreen_height(GPUOffScreen *ofs)
 /* GPUShader */
 
 struct GPUShader {
-	GLhandleARB object;		/* handle for full shader */
-	GLhandleARB vertex;		/* handle for vertex shader */
-	GLhandleARB fragment;	/* handle for fragment shader */
-	GLhandleARB lib;		/* handle for libment shader */
-	int totattrib;			/* total number of attributes */
+	GLuint object;   /* handle for full shader     */
+	GLuint vertex;   /* handle for vertex shader   */
+	GLuint fragment; /* handle for fragment shader */
+	GLuint lib;      /* handle for libment shader  */
+	int totattrib;   /* total number of attributes */
 };
 
-static void shader_print_errors(const char *task, char *log, const char *code)
+static void shader_print_log(GLuint object, GLboolean is_program, const char* nickname, const char* kind)
 {
-	const char *c, *pos, *end = code + strlen(code);
-	int line = 1;
+	GLchar* log;
+	GLint log_size = 0;
 
-	fprintf(stderr, "GPUShader: %s error:\n", task);
+	if (is_program)
+		glGetProgramiv(object, GL_INFO_LOG_LENGTH, &log_size);
+	else
+		glGetShaderiv(object, GL_INFO_LOG_LENGTH, &log_size);
 
-	if (G.debug & G_DEBUG) {
-		c = code;
-		while ((c < end) && (pos = strchr(c, '\n'))) {
-			fprintf(stderr, "%2d  ", line);
-			fwrite(c, (pos+1)-c, 1, stderr);
-			c = pos+1;
-			line++;
-		}
+	if (log_size > 0) {
+		log = (GLchar*)MEM_mallocN(log_size, "shader_print_log");
 
-		fprintf(stderr, "%s", c);
+		if (is_program)
+			glGetProgramInfoLog(object, log_size, NULL, log);
+		else
+			glGetShaderInfoLog(object, log_size, NULL, log);
+
+		if (is_program)
+			fprintf(stderr, "Linker Info Log: %s\n%s\n", nickname, log);
+		else
+			fprintf(stderr, "%s Shader: %s\nShader Info Log:\n%s\n", kind, nickname, log);
+
+		MEM_freeN(log);
 	}
+}
 
-	fprintf(stderr, "%s\n", log);
+static void shader_print_src(GLuint object, GLboolean is_program, const char* nickname, const char *kind, const char **code, int code_count)
+{
+	int total_line = 1;
+
+	if ((G.debug & G_DEBUG) && code_count > 0) {
+		int i = 0;
+
+		fprintf(stderr, "Source Code: %s\n", nickname);
+
+		for (i = 0; i < code_count; i++) {
+			const char *c= code[i];
+			const char *pos;
+			const char *end = code[i] + strlen(code[i]);
+			int line = 1;
+
+			while ((c < end) && (pos = strchr(c, '\n'))) {
+				fprintf(stderr, "%d:%3d:%3d: ", i, line, total_line);
+				fwrite(c, (pos+1)-c, 1, stderr);
+				c = pos+1;
+				line++;
+				total_line++;
+			}
+
+			fprintf(stderr, "%s", c);
+		}
+	}
+}
+
+static bool print_status(GLuint object, GLboolean is_program, const char* nickname, const char* kind, const char** code, int code_count)
+{
+	GLint status;
+
+	if (is_program)
+		glGetProgramiv(object, GL_LINK_STATUS, &status);
+	else
+		glGetShaderiv (object, GL_COMPILE_STATUS, &status);
+
+	shader_print_src(object, is_program, nickname, kind, code, code_count);
+
+	if ((G.debug & G_DEBUG) || !status)
+		shader_print_log(object, is_program, nickname, kind);
+
+	return status;
 }
 
 static const char *gpu_shader_version(void)
@@ -1220,24 +1336,22 @@ static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH])
 	return;
 }
 
-GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *libcode, const char *defines)
+GPUShader *GPU_shader_create(const char *nickname, const char *vertexcode, const char *fragcode, const char *libcode, const char *defines)
 {
-	GLint status;
-	GLcharARB log[5000];
 	GLsizei length = 0;
 	GPUShader *shader;
 	char standard_defines[MAX_DEFINE_LENGTH] = "";
 
-	if (!GLEW_ARB_vertex_shader || !GLEW_ARB_fragment_shader)
+	if (GG.extdisabled || !MX_shader_objects)
 		return NULL;
 
 	shader = MEM_callocN(sizeof(GPUShader), "GPUShader");
 
 	if (vertexcode)
-		shader->vertex = glCreateShaderObjectARB(GL_VERTEX_SHADER_ARB);
+		shader->vertex = glCreateShader(GL_VERTEX_SHADER);
 	if (fragcode)
-		shader->fragment = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
-	shader->object = glCreateProgramObjectARB();
+		shader->fragment = glCreateShader(GL_FRAGMENT_SHADER);
+	shader->object = glCreateProgram();
 
 	if (!shader->object ||
 	    (vertexcode && !shader->vertex) ||
@@ -1262,16 +1376,12 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		if (defines) source[num_source++] = defines;
 		if (vertexcode) source[num_source++] = vertexcode;
 
-		glAttachObjectARB(shader->object, shader->vertex);
-		glShaderSourceARB(shader->vertex, num_source, source, NULL);
+		glAttachShader(shader->object, shader->vertex);
+		glShaderSource(shader->vertex, num_source, source, NULL);
 
-		glCompileShaderARB(shader->vertex);
-		glGetObjectParameterivARB(shader->vertex, GL_OBJECT_COMPILE_STATUS_ARB, &status);
+		glCompileShader(shader->vertex);
 
-		if (!status) {
-			glGetInfoLogARB(shader->vertex, sizeof(log), &length, log);
-			shader_print_errors("compile", log, vertexcode);
-
+		if (!print_status(shader->vertex, GL_FALSE, nickname, "Vertex", source, num_source)) {
 			GPU_shader_free(shader);
 			return NULL;
 		}
@@ -1289,34 +1399,20 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 		if (libcode) source[num_source++] = libcode;
 		if (fragcode) source[num_source++] = fragcode;
 
-		glAttachObjectARB(shader->object, shader->fragment);
-		glShaderSourceARB(shader->fragment, num_source, source, NULL);
+		glAttachShader(shader->object, shader->fragment);
+		glShaderSource(shader->fragment, num_source, source, NULL);
 
-		glCompileShaderARB(shader->fragment);
-		glGetObjectParameterivARB(shader->fragment, GL_OBJECT_COMPILE_STATUS_ARB, &status);
+		glCompileShader(shader->fragment);
 
-		if (!status) {
-			glGetInfoLogARB(shader->fragment, sizeof(log), &length, log);
-			shader_print_errors("compile", log, fragcode);
-
+		if (!print_status(shader->fragment, GL_FALSE, nickname, "Fragment", source, num_source)) {
 			GPU_shader_free(shader);
 			return NULL;
 		}
 	}
 
-#if 0
-	if (lib && lib->lib)
-		glAttachObjectARB(shader->object, lib->lib);
-#endif
+	glLinkProgram(shader->object);
 
-	glLinkProgramARB(shader->object);
-	glGetObjectParameterivARB(shader->object, GL_OBJECT_LINK_STATUS_ARB, &status);
-	if (!status) {
-		glGetInfoLogARB(shader->object, sizeof(log), &length, log);
-		if (fragcode) shader_print_errors("linking", log, fragcode);
-		else if (vertexcode) shader_print_errors("linking", log, vertexcode);
-		else if (libcode) shader_print_errors("linking", log, libcode);
-
+	if (!print_status(shader->object, GL_TRUE, nickname, NULL, NULL, 0)) {
 		GPU_shader_free(shader);
 		return NULL;
 	}
@@ -1327,17 +1423,16 @@ GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const
 #if 0
 GPUShader *GPU_shader_create_lib(const char *code)
 {
-	GLint status;
-	GLcharARB log[5000];
 	GLsizei length = 0;
 	GPUShader *shader;
+	const char** source = (const char**)&code;
 
-	if (!GLEW_ARB_vertex_shader || !GLEW_ARB_fragment_shader)
+	if (GG.extdisabled || !MX_shader_objects)
 		return NULL;
 
 	shader = MEM_callocN(sizeof(GPUShader), "GPUShader");
 
-	shader->lib = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
+	shader->lib = glCreateShader(GL_FRAGMENT_SHADER);
 
 	if (!shader->lib) {
 		fprintf(stderr, "GPUShader, object creation failed.\n");
@@ -1345,15 +1440,11 @@ GPUShader *GPU_shader_create_lib(const char *code)
 		return NULL;
 	}
 
-	glShaderSourceARB(shader->lib, 1, (const char**)&code, NULL);
+	glShaderSource(shader->lib, 1, source, NULL);
 
-	glCompileShaderARB(shader->lib);
-	glGetObjectParameterivARB(shader->lib, GL_OBJECT_COMPILE_STATUS_ARB, &status);
+	glCompileShader(shader->lib);
 
-	if (!status) {
-		glGetInfoLogARB(shader->lib, sizeof(log), &length, log);
-		shader_print_errors("compile", log, code);
-
+	if (!print_status(shader->fragment, GL_FALSE, "GPU_shader_create_lib", "Library", source, 1)) {
 		GPU_shader_free(shader);
 		return NULL;
 	}
@@ -1364,60 +1455,71 @@ GPUShader *GPU_shader_create_lib(const char *code)
 
 void GPU_shader_bind(GPUShader *shader)
 {
+	if (GG.extdisabled || !MX_shader_objects)
+		return;
+
 	GPU_print_error("Pre Shader Bind");
-	glUseProgramObjectARB(shader->object);
+	glUseProgram(shader->object);
 	GPU_print_error("Post Shader Bind");
 }
 
 void GPU_shader_unbind(void)
 {
+	if (GG.extdisabled || !MX_shader_objects)
+		return;
+
 	GPU_print_error("Pre Shader Unbind");
-	glUseProgramObjectARB(0);
+	glUseProgram(0);
 	GPU_print_error("Post Shader Unbind");
 }
 
 void GPU_shader_free(GPUShader *shader)
 {
+	if (GG.extdisabled || !MX_shader_objects || shader == NULL)
+		return;
 	if (shader->lib)
-		glDeleteObjectARB(shader->lib);
+		glDeleteShader(shader->lib);
 	if (shader->vertex)
-		glDeleteObjectARB(shader->vertex);
+		glDeleteShader(shader->vertex);
 	if (shader->fragment)
-		glDeleteObjectARB(shader->fragment);
+		glDeleteShader(shader->fragment);
 	if (shader->object)
-		glDeleteObjectARB(shader->object);
+		glDeleteProgram(shader->object);
 	MEM_freeN(shader);
 }
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 {
-	return glGetUniformLocationARB(shader->object, name);
+	if (GG.extdisabled || !MX_shader_objects)
+		return -1;
+	else
+		return glGetUniformLocation(shader->object, name);
 }
 
 void GPU_shader_uniform_vector(GPUShader *UNUSED(shader), int location, int length, int arraysize, float *value)
 {
-	if (location == -1)
+	if (GG.extdisabled || !MX_shader_objects || location == -1)
 		return;
 
 	GPU_print_error("Pre Uniform Vector");
 
-	if (length == 1) glUniform1fvARB(location, arraysize, value);
-	else if (length == 2) glUniform2fvARB(location, arraysize, value);
-	else if (length == 3) glUniform3fvARB(location, arraysize, value);
-	else if (length == 4) glUniform4fvARB(location, arraysize, value);
-	else if (length == 9) glUniformMatrix3fvARB(location, arraysize, 0, value);
-	else if (length == 16) glUniformMatrix4fvARB(location, arraysize, 0, value);
+	if (length == 1) glUniform1fv(location, arraysize, value);
+	else if (length == 2) glUniform2fv(location, arraysize, value);
+	else if (length == 3) glUniform3fv(location, arraysize, value);
+	else if (length == 4) glUniform4fv(location, arraysize, value);
+	else if (length == 9) glUniformMatrix3fv(location, arraysize, 0, value);
+	else if (length == 16) glUniformMatrix4fv(location, arraysize, 0, value);
 
 	GPU_print_error("Post Uniform Vector");
 }
 
 void GPU_shader_uniform_int(GPUShader *UNUSED(shader), int location, int value)
 {
-	if (location == -1)
+	if (GG.extdisabled || !MX_shader_objects || location == -1)
 		return;
 
 	GPU_print_error("Pre Uniform Int");
-	glUniform1iARB(location, value);
+	glUniform1i(location, value);
 	GPU_print_error("Post Uniform Int");
 }
 
@@ -1438,16 +1540,16 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 
 	GPU_print_error("Pre Uniform Texture");
 
-	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
+	arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + tex->number);
 
-	if (tex->number != 0) glActiveTextureARB(arbnumber);
+	if (tex->number != 0) glActiveTexture(arbnumber);
 	if (tex->bindcode != 0)
 		glBindTexture(tex->target, tex->bindcode);
 	else
 		GPU_invalid_tex_bind(tex->target);
-	glUniform1iARB(location, tex->number);
+	glUniform1i(location, tex->number);
 	glEnable(tex->target);
-	if (tex->number != 0) glActiveTextureARB(GL_TEXTURE0_ARB);
+	if (tex->number != 0) glActiveTexture(GL_TEXTURE0);
 
 	GPU_print_error("Post Uniform Texture");
 }
@@ -1455,10 +1557,13 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 {
 	int index;
-	
+
+	if (GG.extdisabled || !MX_vertex_shader)
+		return -1;
+
 	GPU_print_error("Pre Get Attribute");
 
-	index = glGetAttribLocationARB(shader->object, name);
+	index = glGetAttribLocation(shader->object, name);
 
 	GPU_print_error("Post Get Attribute");
 
@@ -1472,12 +1577,12 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 	switch (shader) {
 		case GPU_SHADER_VSM_STORE:
 			if (!GG.shaders.vsm_store)
-				GG.shaders.vsm_store = GPU_shader_create(datatoc_gpu_shader_vsm_store_vert_glsl, datatoc_gpu_shader_vsm_store_frag_glsl, NULL, NULL);
+				GG.shaders.vsm_store = GPU_shader_create("VSM Store", datatoc_gpu_shader_vsm_store_vert_glsl, datatoc_gpu_shader_vsm_store_frag_glsl, NULL, NULL);
 			retval = GG.shaders.vsm_store;
 			break;
 		case GPU_SHADER_SEP_GAUSSIAN_BLUR:
 			if (!GG.shaders.sep_gaussian_blur)
-				GG.shaders.sep_gaussian_blur = GPU_shader_create(datatoc_gpu_shader_sep_gaussian_blur_vert_glsl, datatoc_gpu_shader_sep_gaussian_blur_frag_glsl, NULL, NULL);
+				GG.shaders.sep_gaussian_blur = GPU_shader_create("Gaussian Blur", datatoc_gpu_shader_sep_gaussian_blur_vert_glsl, datatoc_gpu_shader_sep_gaussian_blur_frag_glsl, NULL, NULL);
 			retval = GG.shaders.sep_gaussian_blur;
 			break;
 	}
@@ -1515,7 +1620,7 @@ typedef struct GPUPixelBuffer {
 void GPU_pixelbuffer_free(GPUPixelBuffer *pb)
 {
 	if (pb->bindcode[0])
-		glDeleteBuffersARB(pb->numbuffers, pb->bindcode);
+		glDeleteBuffers(pb->numbuffers, pb->bindcode);
 	MEM_freeN(pb);
 }
 
@@ -1523,15 +1628,15 @@ GPUPixelBuffer *gpu_pixelbuffer_create(int x, int y, int halffloat, int numbuffe
 {
 	GPUPixelBuffer *pb;
 
-	if (!GLEW_ARB_multitexture || !GLEW_EXT_pixel_buffer_object)
+	if (!MX_pixel_buffer_object || !MX_mapbuffer || !MX_texture_rectangle)
 		return NULL;
-	
+
 	pb = MEM_callocN(sizeof(GPUPixelBuffer), "GPUPBO");
 	pb->datasize = x*y*4*((halffloat)? 16: 8);
 	pb->numbuffers = numbuffers;
 	pb->halffloat = halffloat;
 
-	glGenBuffersARB(pb->numbuffers, pb->bindcode);
+	glGenBuffers(pb->numbuffers, pb->bindcode);
 
 	if (!pb->bindcode[0]) {
 		fprintf(stderr, "GPUPixelBuffer allocation failed\n");
@@ -1547,35 +1652,35 @@ void GPU_pixelbuffer_texture(GPUTexture *tex, GPUPixelBuffer *pb)
 	void *pixels;
 	int i;
 
-	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
+	glBindTexture(GL_TEXTURE_RECTANGLE, tex->bindcode);
 
 	for (i = 0; i < pb->numbuffers; i++) {
-		glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, pb->bindcode[pb->current]);
-		glBufferDataARB(GL_PIXEL_UNPACK_BUFFER_EXT, pb->datasize, NULL,
-		GL_STREAM_DRAW_ARB);
+		glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pb->bindcode[pb->current]);
+		glBufferData(GL_PIXEL_UNPACK_BUFFER, pb->datasize, NULL,
+		GL_STREAM_DRAW);
 
-		pixels = glMapBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, GL_WRITE_ONLY);
+		pixels = glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
 		/*memcpy(pixels, _oImage.data(), pb->datasize);*/
 
-		if (!glUnmapBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT)) {
+		if (!glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER)) {
 			fprintf(stderr, "Could not unmap opengl PBO\n");
 			break;
 		}
 	}
 
-	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
+	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 }
 
 static int pixelbuffer_map_into_gpu(GLuint bindcode)
 {
 	void *pixels;
 
-	glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, bindcode);
-	pixels = glMapBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, GL_WRITE_ONLY);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, bindcode);
+	pixels = glMapBuffer(GL_PIXEL_UNPACK_BUFFER, GL_WRITE_ONLY);
 
 	/* do stuff in pixels */
 
-	if (!glUnmapBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT)) {
+	if (!glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER)) {
 		fprintf(stderr, "Could not unmap opengl PBO\n");
 		return 0;
 	}
@@ -1586,14 +1691,14 @@ static int pixelbuffer_map_into_gpu(GLuint bindcode)
 static void pixelbuffer_copy_to_texture(GPUTexture *tex, GPUPixelBuffer *pb, GLuint bindcode)
 {
 	GLenum type = (pb->halffloat)? GL_HALF_FLOAT_NV: GL_UNSIGNED_BYTE;
-	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, tex->bindcode);
-	glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, bindcode);
+	glBindTexture(GL_TEXTURE_RECTANGLE, tex->bindcode);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, bindcode);
 
-	glTexSubImage2D(GL_TEXTURE_RECTANGLE_EXT, 0, 0, 0, tex->w, tex->h,
+	glTexSubImage2D(GL_TEXTURE_RECTANGLE, 0, 0, 0, tex->w, tex->h,
 					GL_RGBA, type, NULL);
 
-	glBindBufferARB(GL_PIXEL_UNPACK_BUFFER_EXT, 0);
-	glBindTexture(GL_TEXTURE_RECTANGLE_EXT, 0);
+	glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+	glBindTexture(GL_TEXTURE_RECTANGLE, 0);
 }
 
 void GPU_pixelbuffer_async_to_gpu(GPUTexture *tex, GPUPixelBuffer *pb)
@@ -1613,4 +1718,3 @@ void GPU_pixelbuffer_async_to_gpu(GPUTexture *tex, GPUPixelBuffer *pb)
 	}
 }
 #endif
-

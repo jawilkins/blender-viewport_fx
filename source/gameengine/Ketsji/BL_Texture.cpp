@@ -401,8 +401,8 @@ int BL_Texture::GetMaxUnits()
 {
 	if (g_max_units < 0) {
 		GLint unit;
-		if (GLEW_ARB_multitexture) {
-			glGetIntegerv(GL_MAX_TEXTURE_UNITS_ARB, &unit);
+		if (MX_multitexture) {
+			glGetIntegerv(GL_MAX_TEXTURE_UNITS, &unit);
 			g_max_units = (MAXTEX>=unit)?unit:MAXTEX;
 		} else {
 			g_max_units = 0;
@@ -414,22 +414,22 @@ int BL_Texture::GetMaxUnits()
 
 void BL_Texture::ActivateFirst()
 {
-	if (GLEW_ARB_multitexture)
-		glActiveTextureARB(GL_TEXTURE0_ARB);
+	if (MX_multitexture)
+		glActiveTexture(GL_TEXTURE0);
 }
 
 void BL_Texture::ActivateUnit(int unit)
 {
-	if (GLEW_ARB_multitexture)
+	if (MX_multitexture)
 		if (unit <= MAXTEX)
-			glActiveTextureARB(GL_TEXTURE0_ARB+unit);
+			glActiveTexture(GL_TEXTURE0+unit);
 }
 
 
 void BL_Texture::DisableUnit()
 {
-	if (GLEW_ARB_multitexture)
-		glActiveTextureARB(GL_TEXTURE0_ARB+mUnit);
+	if (MX_multitexture)
+		glActiveTexture(GL_TEXTURE0+mUnit);
 
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
@@ -454,8 +454,8 @@ void BL_Texture::DisableUnit()
 void BL_Texture::DisableAllTextures()
 {
 	for (int i=0; i<MAXTEX; i++) {
-		if (GLEW_ARB_multitexture)
-			glActiveTextureARB(GL_TEXTURE0_ARB+i);
+		if (MX_multitexture)
+			glActiveTexture(GL_TEXTURE0+i);
 
 		glMatrixMode(GL_TEXTURE);
 		glLoadIdentity();
@@ -468,15 +468,15 @@ void BL_Texture::DisableAllTextures()
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE );
 	}
 
-	if (GLEW_ARB_multitexture)
-		glActiveTextureARB(GL_TEXTURE0_ARB);
+	if (MX_multitexture)
+		glActiveTexture(GL_TEXTURE0);
 }
 
 
 void BL_Texture::ActivateTexture()
 {
-	if (GLEW_ARB_multitexture)
-		glActiveTextureARB(GL_TEXTURE0_ARB+mUnit);
+	if (MX_multitexture)
+		glActiveTexture(GL_TEXTURE0+mUnit);
 
 	if (mType == GL_TEXTURE_CUBE_MAP_ARB && GLEW_ARB_texture_cube_map)
 	{

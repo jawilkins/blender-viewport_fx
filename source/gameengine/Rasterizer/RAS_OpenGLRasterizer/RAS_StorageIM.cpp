@@ -73,21 +73,21 @@ void RAS_StorageIM::TexCoord(const RAS_TexVert &tv)
 {
 	int unit;
 
-	if (GLEW_ARB_multitexture) {
+	if (MX_multitexture) {
 		for (unit = 0; unit < *m_texco_num; unit++) {
 			switch (m_texco[unit]) {
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
 				case RAS_IRasterizer::RAS_TEXCO_GLOB:
-					glMultiTexCoord3fvARB(GL_TEXTURE0_ARB + unit, tv.getXYZ());
+					glMultiTexCoord3fv(GL_TEXTURE0 + unit, tv.getXYZ());
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_UV:
-					glMultiTexCoord2fvARB(GL_TEXTURE0_ARB + unit, tv.getUV(unit));
+					glMultiTexCoord2fv (GL_TEXTURE0 + unit, tv.getUV(unit));
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_NORM:
-					glMultiTexCoord3fvARB(GL_TEXTURE0_ARB + unit, tv.getNormal());
+					glMultiTexCoord3fv (GL_TEXTURE0 + unit, tv.getNormal());
 					break;
 				case RAS_IRasterizer::RAS_TEXTANGENT:
-					glMultiTexCoord4fvARB(GL_TEXTURE0_ARB + unit, tv.getTangent());
+					glMultiTexCoord4fv (GL_TEXTURE0 + unit, tv.getTangent());
 					break;
 				default:
 					break;
@@ -95,24 +95,24 @@ void RAS_StorageIM::TexCoord(const RAS_TexVert &tv)
 		}
 	}
 
-	if (GLEW_ARB_vertex_program) {
+	if (MX_vertexattrib) {
 		for (unit = 0; unit < *m_attrib_num; unit++) {
 			switch (m_attrib[unit]) {
 				case RAS_IRasterizer::RAS_TEXCO_ORCO:
 				case RAS_IRasterizer::RAS_TEXCO_GLOB:
-					glVertexAttrib3fvARB(unit, tv.getXYZ());
+					glVertexAttrib3fv(unit, tv.getXYZ());
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_UV:
-					glVertexAttrib2fvARB(unit, tv.getUV(m_attrib_layer[unit]));
+					glVertexAttrib2fv(unit, tv.getUV(m_attrib_layer[unit]));
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_NORM:
-					glVertexAttrib3fvARB(unit, tv.getNormal());
+					glVertexAttrib3fv(unit, tv.getNormal());
 					break;
 				case RAS_IRasterizer::RAS_TEXTANGENT:
-					glVertexAttrib4fvARB(unit, tv.getTangent());
+					glVertexAttrib4fv(unit, tv.getTangent());
 					break;
 				case RAS_IRasterizer::RAS_TEXCO_VCOL:
-					glVertexAttrib4ubvARB(unit, tv.getRGBA());
+					glVertexAttrib4ubv(unit, tv.getRGBA());
 					break;
 				default:
 					break;

@@ -122,7 +122,7 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, int storage)
 
 	m_prevafvalue = GPU_get_anisotropic();
 
-	if (m_storage_type == RAS_VBO /*|| m_storage_type == RAS_AUTO_STORAGE && GLEW_ARB_vertex_buffer_object*/)
+	if (m_storage_type == RAS_VBO /*|| m_storage_type == RAS_AUTO_STORAGE && MX_vertex_buffer_object*/)
 	{
 		m_storage = new RAS_StorageVBO(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
 		m_failsafe_storage = new RAS_StorageIM(&m_texco_num, m_texco, &m_attrib_num, m_attrib, m_attrib_layer);
@@ -744,7 +744,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 
 				// find the right opengl attribute
 				glattrib = -1;
-				if (GLEW_ARB_vertex_program)
+				if (MX_vertexattrib)
 					for (unit=0; unit<m_attrib_num; unit++)
 						if (m_attrib[unit] == RAS_TEXCO_UV)
 							glattrib = unit;
@@ -1407,9 +1407,9 @@ static void DisableForText()
 	glDisable(GL_LIGHTING);
 	glDisable(GL_COLOR_MATERIAL);
 
-	if (GLEW_ARB_multitexture) {
+	if (MX_multitexture) {
 		for (int i=0; i<RAS_MAX_TEXCO; i++) {
-			glActiveTextureARB(GL_TEXTURE0_ARB+i);
+			glActiveTexture(GL_TEXTURE0+i);
 
 			if (GLEW_ARB_texture_cube_map)
 				glDisable(GL_TEXTURE_CUBE_MAP_ARB);
@@ -1417,7 +1417,7 @@ static void DisableForText()
 			glDisable(GL_TEXTURE_2D);
 		}
 
-		glActiveTextureARB(GL_TEXTURE0_ARB);
+		glActiveTexture(GL_TEXTURE0);
 	}
 	else {
 		if (GLEW_ARB_texture_cube_map)

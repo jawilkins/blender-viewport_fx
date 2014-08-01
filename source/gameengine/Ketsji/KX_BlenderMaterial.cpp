@@ -270,7 +270,7 @@ void KX_BlenderMaterial::OnExit()
 
 void KX_BlenderMaterial::setShaderData( bool enable, RAS_IRasterizer *ras)
 {
-	MT_assert(GLEW_ARB_shader_objects && mShader);
+	MT_assert(MX_shader_objects && mShader);
 
 	int i;
 	if ( !enable || !mShader->Ok() ) {
@@ -554,7 +554,7 @@ KX_BlenderMaterial::Activate(
 	TCachingInfo& cachingInfo
 	)const
 {
-	if (GLEW_ARB_shader_objects && (mShader && mShader->Ok())) {
+	if (MX_shader_objects && (mShader && mShader->Ok())) {
 		if ((mPass++) < mShader->getNumPass() ) {
 			ActivatShaders(rasty, cachingInfo);
 			return true;
@@ -568,7 +568,7 @@ KX_BlenderMaterial::Activate(
 			return false;
 		}
 	}
-	else if ( GLEW_ARB_shader_objects && (mBlenderShader && mBlenderShader->Ok() ) ) {
+	else if ( MX_shader_objects && (mBlenderShader && mBlenderShader->Ok() ) ) {
 		if (mPass++ == 0) {
 			ActivateBlenderShaders(rasty, cachingInfo);
 			return true;
@@ -605,10 +605,10 @@ bool KX_BlenderMaterial::UsesLighting(RAS_IRasterizer *rasty) const
 
 void KX_BlenderMaterial::ActivateMeshSlot(const RAS_MeshSlot & ms, RAS_IRasterizer* rasty) const
 {
-	if (mShader && GLEW_ARB_shader_objects) {
+	if (mShader && MX_shader_objects) {
 		mShader->Update(ms, rasty);
 	}
-	else if (mBlenderShader && GLEW_ARB_shader_objects) {
+	else if (mBlenderShader && MX_shader_objects) {
 		int alphablend;
 
 		mBlenderShader->Update(ms, rasty);
@@ -660,7 +660,7 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 	if (ras->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED || 
 		(ras->GetDrawingMode() == RAS_IRasterizer::KX_SHADOW && mMaterial->alphablend != GEMAT_SOLID && !ras->GetUsingOverrideShader())) {
 		ras->SetAttribNum(0);
-		if (mShader && GLEW_ARB_shader_objects) {
+		if (mShader && MX_shader_objects) {
 			if (mShader->GetAttribute() == BL_Shader::SHD_TANGENT) {
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXCO_DISABLE, 0);
 				ras->SetAttrib(RAS_IRasterizer::RAS_TEXTANGENT, 1);
@@ -896,7 +896,7 @@ int KX_BlenderMaterial::pyattr_set_blending(void *self_v, const KX_PYATTRIBUTE_D
 
 KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 {
-	if ( !GLEW_ARB_fragment_shader) {
+	if (!MX_fragment_shader) {
 		if (!mModified)
 			spit("Fragment shaders not supported");
 	
@@ -904,7 +904,7 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 		Py_RETURN_NONE;
 	}
 
-	if ( !GLEW_ARB_vertex_shader) {
+	if ( !MX_vertex_shader) {
 		if (!mModified)
 			spit("Vertex shaders not supported");
 
@@ -912,7 +912,7 @@ KX_PYMETHODDEF_DOC( KX_BlenderMaterial, getShader , "getShader()")
 		Py_RETURN_NONE;
 	}
 
-	if (!GLEW_ARB_shader_objects) {
+	if (!MX_shader_objects) {
 		if (!mModified)
 			spit("GLSL not supported");
 		mModified = true;

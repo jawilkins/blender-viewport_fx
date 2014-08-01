@@ -30,9 +30,11 @@ set(INC
 
 set(SRC
 	intern/glew-mx.c
+	intern/proc-binding.c
 
 	glew-mx.h
 	intern/gl-deprecated.h
+	intern/proc-binding.h
 	intern/symbol-binding.h
 )
 

@@ -170,7 +170,7 @@ KX_Dome::~KX_Dome (void)
 	ClearGLImages();
 
 	if (fboSupported)
-		glDeleteFramebuffersEXT(1, &warp.fboId);
+		glDeleteFramebuffers(1, &warp.fboId);
 
 	if (dlistSupported)
 		glDeleteLists(dlistId, (GLsizei) m_numimages);
@@ -333,38 +333,38 @@ bool KX_Dome::CreateDL()
 
 bool KX_Dome::CreateFBO(void)
 {
-	if (!GLEW_EXT_framebuffer_object)
+	if (!MX_framebuffer_object)
 	{
 		printf("Dome Error: FrameBuffer unsupported. Using low resolution warp image.");
 		return false;
 	}
 
-	glGenFramebuffersEXT(1, &warp.fboId);
+	glGenFramebuffers(1, &warp.fboId);
 	if (warp.fboId==0)
 	{
 		printf("Dome Error: Invalid frame buffer object. Using low resolution warp image.");
 		return false;
 	}
 
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, warp.fboId);
+	glBindFramebuffer(GL_FRAMEBUFFER, warp.fboId);
 
-	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
 		GL_TEXTURE_2D, domefacesId[m_numfaces], 0);
 
-	GLenum status = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 
-	if (status == GL_FRAMEBUFFER_UNSUPPORTED_EXT)
+	if (status == GL_FRAMEBUFFER_UNSUPPORTED)
 	{
 		printf("Dome Error: FrameBuffer settings unsupported. Using low resolution warp image.");
 		return false;
 	}
-	else if (status != GL_FRAMEBUFFER_COMPLETE_EXT)
+	else if (status != GL_FRAMEBUFFER_COMPLETE)
 	{
-		glDeleteFramebuffersEXT(1, &warp.fboId);
+		glDeleteFramebuffers(1, &warp.fboId);
 		return false;
 	}
 
-	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	//nothing failed: we can use the whole FBO as buffersize
 	warp.bufferwidth = warp.bufferheight = warp.imagesize;
@@ -1613,7 +1613,7 @@ void KX_Dome::Draw(void)
 {
 
 	if (fboSupported) {
-		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, warp.fboId);
+		glBindFramebuffer(GL_FRAMEBUFFER, warp.fboId);
 
 		glViewport(0,0,warp.imagesize, warp.imagesize);
 		glScissor(0,0,warp.imagesize, warp.imagesize);
@@ -1642,7 +1642,7 @@ void KX_Dome::Draw(void)
 		if (fboSupported)
 		{
 			m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
-			glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		}
 		else
 		{

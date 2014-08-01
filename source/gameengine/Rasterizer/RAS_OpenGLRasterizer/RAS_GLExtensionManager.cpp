@@ -32,6 +32,7 @@
 
 #include <iostream>
 
+#define MX_NO_PROC_BINDING
 #include "glew-mx.h"
 
 #include "RAS_GLExtensionManager.h"
@@ -62,6 +63,8 @@ namespace bgl
 					std::cout << "Detected GL_ARB_fragment_shader" << std::endl;
 				if (GLEW_ARB_vertex_program)
 					std::cout << "Detected GL_ARB_vertex_program" << std::endl;
+				if (GLEW_ARB_fragment_program)
+					std::cout << "Detected GL_ARB_fragment_program" << std::endl;
 				if (GLEW_ARB_depth_texture)
 					std::cout << "Detected GL_ARB_depth_texture" << std::endl;
 				if (GLEW_EXT_separate_specular_color)

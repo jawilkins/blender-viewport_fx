@@ -30,6 +30,7 @@
  *  \ingroup ketsji
  */
 
+#define MX_NO_PROC_BINDING
 #include "glew-mx.h"
 
 #ifdef _MSC_VER

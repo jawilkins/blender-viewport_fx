@@ -472,7 +472,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 
 			bool usemat = false, useglslmat = false;
 
-			if (GLEW_ARB_multitexture && GLEW_VERSION_1_1)
+			if (MX_multitexture)
 				usemat = true;
 
 			if (GPU_glsl_support())

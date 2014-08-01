@@ -356,7 +356,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 	// printf("i: %d\n", i);
 	// printf("point %f, %f, %f\n", cv[i][0], cv[i][1], cv[i][2]);
 
-	if (GL_TRUE == glewIsSupported("GL_ARB_fragment_program")) {
+	if (GLEW_ARB_fragment_program) {
 		glEnable(GL_FRAGMENT_PROGRAM_ARB);
 		glGenProgramsARB(1, &prog);
 

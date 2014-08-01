@@ -152,6 +152,7 @@ static GPUShader *gpu_simple_shader(int options)
 			strcat(defines, "#define USE_SCENE_LIGHTING\n");
 
 		shader = GPU_shader_create(
+			"Simple",
 			datatoc_gpu_shader_simple_vert_glsl,
 			datatoc_gpu_shader_simple_frag_glsl,
 			NULL, defines);

@@ -166,17 +166,17 @@ void GPU_render_text(MTFace *tface, int mode,
 			uv[2][1] = (tface->uv[2][1] - centery) * sizey + transy;
 			
 			glBegin(GL_POLYGON);
-			if (glattrib >= 0) glVertexAttrib2fvARB(glattrib, uv[0]);
+			if (glattrib >= 0) glVertexAttrib2fv(glattrib, uv[0]);
 			else glTexCoord2fv(uv[0]);
 			if (col) gpu_mcol(col[0]);
 			glVertex3f(sizex * v1[0] + movex, sizey * v1[1] + movey, v1[2]);
 			
-			if (glattrib >= 0) glVertexAttrib2fvARB(glattrib, uv[1]);
+			if (glattrib >= 0) glVertexAttrib2fv(glattrib, uv[1]);
 			else glTexCoord2fv(uv[1]);
 			if (col) gpu_mcol(col[1]);
 			glVertex3f(sizex * v2[0] + movex, sizey * v2[1] + movey, v2[2]);
 
-			if (glattrib >= 0) glVertexAttrib2fvARB(glattrib, uv[2]);
+			if (glattrib >= 0) glVertexAttrib2fv(glattrib, uv[2]);
 			else glTexCoord2fv(uv[2]);
 			if (col) gpu_mcol(col[2]);
 			glVertex3f(sizex * v3[0] + movex, sizey * v3[1] + movey, v3[2]);
@@ -185,7 +185,7 @@ void GPU_render_text(MTFace *tface, int mode,
 				uv[3][0] = (tface->uv[3][0] - centerx) * sizex + transx;
 				uv[3][1] = (tface->uv[3][1] - centery) * sizey + transy;
 
-				if (glattrib >= 0) glVertexAttrib2fvARB(glattrib, uv[3]);
+				if (glattrib >= 0) glVertexAttrib2fv(glattrib, uv[3]);
 				else glTexCoord2fv(uv[3]);
 				if (col) gpu_mcol(col[3]);
 				glVertex3f(sizex * v4[0] + movex, sizey * v4[1] + movey, v4[2]);
@@ -254,30 +254,11 @@ void GPU_set_gpu_mipmapping(int gpu_mipmap)
 	int old_value = GTS.gpu_mipmap;
 
 	/* only actually enable if it's supported */
-	GTS.gpu_mipmap = gpu_mipmap && GLEW_EXT_framebuffer_object;
+	GTS.gpu_mipmap = gpu_mipmap && MX_framebuffer_object;
 
 	if (old_value != GTS.gpu_mipmap) {
 		GPU_free_images();
 	}
-}
-
-static void gpu_generate_mipmap(GLenum target)
-{
-	const bool is_ati = GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY);
-	int target_enabled = 0;
-
-	/* work around bug in ATI driver, need to have GL_TEXTURE_2D enabled
-	 * http://www.opengl.org/wiki/Common_Mistakes#Automatic_mipmap_generation */
-	if (is_ati) {
-		target_enabled = glIsEnabled(target);
-		if (!target_enabled)
-			glEnable(target);
-	}
-
-	glGenerateMipmapEXT(target);
-
-	if (is_ati && !target_enabled)
-		glDisable(target);
 }
 
 void GPU_set_mipmap(int mipmap)
@@ -734,7 +715,7 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float *frect, int 
 			else
 				glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA,  rectw, recth, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
 
-			gpu_generate_mipmap(GL_TEXTURE_2D);
+			glGenerateMipmap(GL_TEXTURE_2D);
 		}
 		else {
 			if (use_high_bit_depth)
@@ -1006,7 +987,7 @@ static bool GPU_check_scaled_image(ImBuf *ibuf, Image *ima, float *frect, int x,
 		}
 
 		if (GPU_get_mipmap()) {
-			gpu_generate_mipmap(GL_TEXTURE_2D);
+			glGenerateMipmap(GL_TEXTURE_2D);
 		}
 		else {
 			ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
@@ -1063,7 +1044,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 			/* we have already accounted for the case where GTS.gpu_mipmap is false
 			 * so we will be using GPU mipmap generation here */
 			if (GPU_get_mipmap()) {
-				gpu_generate_mipmap(GL_TEXTURE_2D);
+				glGenerateMipmap(GL_TEXTURE_2D);
 			}
 			else {
 				ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;
@@ -1096,7 +1077,7 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 
 		/* see comment above as to why we are using gpu mipmap generation here */
 		if (GPU_get_mipmap()) {
-			gpu_generate_mipmap(GL_TEXTURE_2D);
+			glGenerateMipmap(GL_TEXTURE_2D);
 		}
 		else {
 			ima->tpageflag &= ~IMA_MIPMAP_COMPLETE;

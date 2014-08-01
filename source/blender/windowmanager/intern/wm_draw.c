@@ -435,8 +435,8 @@ static int wm_triple_gen_textures(wmWindow *win, wmDrawTriple *triple)
 	int x, y;
 
 	/* compute texture sizes */
-	if (GLEW_ARB_texture_rectangle || GLEW_NV_texture_rectangle || GLEW_EXT_texture_rectangle) {
-		triple->target = GL_TEXTURE_RECTANGLE_ARB;
+	if (MX_texture_rectangle) {
+		triple->target = GL_TEXTURE_RECTANGLE;
 		triple->nx = 1;
 		triple->ny = 1;
 		triple->x[0] = winsize_x;
