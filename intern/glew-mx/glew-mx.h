@@ -293,13 +293,8 @@ typedef struct MXContext {
 
 } MXContext;
 
-#ifdef WITH_GLEW_MX
 extern MXContext *_mx_context;
 #define MX_CONTEXT(x) (_mx_context->x)
-#else
-extern MXContext _mx_context;
-#define MX_CONTEXT(x) (_mx_context.x)
-#endif
 
 
 #include "intern/symbol-binding.h"
