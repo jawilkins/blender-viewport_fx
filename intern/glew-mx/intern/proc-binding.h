@@ -665,10 +665,24 @@
 #define MX_texture_rectangle MX_CONTEXT(texture_rectangle)
 
 
-
-#define MX_profile_compatibility (!GLEW_VERSION_3_1 || GLEW_ARB_compatibility)
-#define MX_profile_core          (!MX_profile_compatibility)
-#define MX_profile_es20          GLEW_VERSION_ES_2_0
+/* we can optimize a little if only one profile is supported, otherwise we need to check at runtime */
+#if defined(WITH_GL_PROFILE_CORE) && !defined(WITH_GL_PROFILE_ES20) && !defined(WITH_GL_PROFILE_COMPAT)
+#  define MX_profile_compatibility 0
+#  define MX_profile_core          1
+#  define MX_profile_es20          0
+#elif !defined(WITH_GL_PROFILE_CORE) && defined(WITH_GL_PROFILE_ES20) && !defined(WITH_GL_PROFILE_COMPAT)
+#  define MX_profile_compatibility 0
+#  define MX_profile_core          0
+#  define MX_profile_es20          1
+#elif !defined(WITH_GL_PROFILE_CORE) && !defined(WITH_GL_PROFILE_ES20) && defined(WITH_GL_PROFILE_COMPAT)
+#  define MX_profile_compatibility 1
+#  define MX_profile_core          0
+#  define MX_profile_es20          0
+#else
+#  define MX_profile_compatibility (!GLEW_VERSION_3_1 || GLEW_ARB_compatibility)
+#  define MX_profile_core          (!MX_profile_compatibility)
+#  define MX_profile_es20          GLEW_VERSION_ES_2_0
+#endif
 
 
 void _mx_init_proc_binding(void);
