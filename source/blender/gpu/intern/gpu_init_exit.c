@@ -34,6 +34,7 @@
 #include "GPU_extensions.h"  /* library */
 
 #include "intern/gpu_codegen.h"
+#include "intern/gpu_debug_private.h"
 #include "intern/gpu_extensions_private.h"
 
 /**
@@ -54,12 +55,14 @@ void GPU_init(void)
 	gpu_extensions_init(); /* must come first */
 
 	gpu_codegen_init();
+	GPU_DEBUG_INIT();
 }
 
 
 
 void GPU_exit(void)
 {
+	GPU_DEBUG_EXIT();
 	gpu_codegen_exit();
 
 	gpu_extensions_exit(); /* must come last */

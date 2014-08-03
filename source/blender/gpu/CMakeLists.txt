@@ -48,6 +48,7 @@ set(INC_SYS
 set(SRC
 	intern/gpu_buffers.c
 	intern/gpu_codegen.c
+	intern/gpu_debug.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
 	intern/gpu_init_exit.c
@@ -56,6 +57,7 @@ set(SRC
 	intern/gpu_select.c
 
 	GPU_buffers.h
+	GPU_debug.h
 	GPU_draw.h
 	GPU_extensions.h
 	GPU_glew.h
@@ -64,6 +66,7 @@ set(SRC
 	GPU_simple_shader.h
 	GPU_select.h
 	intern/gpu_codegen.h
+	intern/gpu_debug_private.h
 	intern/gpu_extensions_private.h
 )
 

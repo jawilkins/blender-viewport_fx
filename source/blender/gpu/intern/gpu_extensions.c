@@ -45,12 +45,13 @@
 
 #include "BKE_global.h"
 
+#include "GPU_debug.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_simple_shader.h"
 
 #include "intern/gpu_codegen.h"
-#include "intern/gpu_extensions_private.h"
+#include "intern/gpu_debug_private.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -305,20 +306,6 @@ int GPU_color_depth(void)
 	return GG.colordepth;
 }
 
-int GPU_print_error(const char *str)
-{
-	GLenum errCode;
-
-	if (G.debug & G_DEBUG) {
-		if ((errCode = glGetError()) != GL_NO_ERROR) {
-			fprintf(stderr, "%s opengl error: %s\n", str, gluErrorString(errCode));
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
 static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
 {
 	const char *err= "unknown";
@@ -554,7 +541,7 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 	tex->number = 0;
 	glBindTexture(tex->target, tex->bindcode);
 
-	GPU_print_error("3D glBindTexture");
+	GPU_ASSERT_NO_GL_ERRORS("3D glBindTexture");
 
 	type = GL_FLOAT;
 	if (channels == 4) {
@@ -571,7 +558,7 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 
 	glTexImage3D(tex->target, 0, internalformat, tex->w, tex->h, tex->depth, 0, format, type, NULL);
 
-	GPU_print_error("3D glTexImage3D");
+	GPU_ASSERT_NO_GL_ERRORS("3D glTexImage3D");
 
 	if (fpixels) {
 		if (!GPU_non_power_of_two_support() && (w != tex->w || h != tex->h || depth != tex->depth)) {
@@ -582,19 +569,19 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 		}
 
 		glTexSubImage3D(tex->target, 0, 0, 0, 0, w, h, depth, format, type, fpixels);
-		GPU_print_error("3D glTexSubImage3D");
+		GPU_ASSERT_NO_GL_ERRORS("3D glTexSubImage3D");
 	}
 
 
 	glTexParameterfv(GL_TEXTURE_3D, GL_TEXTURE_BORDER_COLOR, vfBorderColor);
-	GPU_print_error("3D GL_TEXTURE_BORDER_COLOR");
+	GPU_ASSERT_NO_GL_ERRORS("3D GL_TEXTURE_BORDER_COLOR");
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	GPU_print_error("3D GL_LINEAR");
+	GPU_ASSERT_NO_GL_ERRORS("3D GL_LINEAR");
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-	GPU_print_error("3D GL_CLAMP_TO_BORDER");
+	GPU_ASSERT_NO_GL_ERRORS("3D GL_CLAMP_TO_BORDER");
 
 	if (pixels)
 		MEM_freeN(pixels);
@@ -787,7 +774,7 @@ void GPU_texture_bind(GPUTexture *tex, int number)
 		return;
 	}
 
-	GPU_print_error("Pre Texture Bind");
+	GPU_ASSERT_NO_GL_ERRORS("Pre Texture Bind");
 
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + number);
 	if (number != 0) glActiveTexture(arbnumber);
@@ -801,7 +788,7 @@ void GPU_texture_bind(GPUTexture *tex, int number)
 
 	tex->number = number;
 
-	GPU_print_error("Post Texture Bind");
+	GPU_ASSERT_NO_GL_ERRORS("Post Texture Bind");
 }
 
 void GPU_texture_unbind(GPUTexture *tex)
@@ -816,7 +803,7 @@ void GPU_texture_unbind(GPUTexture *tex)
 		return;
 	}
 
-	GPU_print_error("Pre Texture Unbind");
+	GPU_ASSERT_NO_GL_ERRORS("Pre Texture Unbind");
 
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + tex->number);
 	if (tex->number != 0) glActiveTexture(arbnumber);
@@ -826,7 +813,7 @@ void GPU_texture_unbind(GPUTexture *tex)
 
 	tex->number = -1;
 
-	GPU_print_error("Post Texture Unbind");
+	GPU_ASSERT_NO_GL_ERRORS("Post Texture Unbind");
 }
 
 void GPU_texture_free(GPUTexture *tex)
@@ -834,7 +821,7 @@ void GPU_texture_free(GPUTexture *tex)
 	tex->refcount--;
 
 	if (tex->refcount < 0)
-		fprintf(stderr, "GPUTexture: negative refcount\n");
+		GPU_print_error("GPUTexture: negative refcount\n");
 	
 	if (tex->refcount == 0) {
 		if (tex->fb)
@@ -1357,7 +1344,7 @@ GPUShader *GPU_shader_create(const char *nickname, const char *vertexcode, const
 	    (vertexcode && !shader->vertex) ||
 	    (fragcode && !shader->fragment))
 	{
-		fprintf(stderr, "GPUShader, object creation failed.\n");
+		GPU_print_error("GPUShader: object creation failed.\n");
 		GPU_shader_free(shader);
 		return NULL;
 	}
@@ -1435,7 +1422,7 @@ GPUShader *GPU_shader_create_lib(const char *code)
 	shader->lib = glCreateShader(GL_FRAGMENT_SHADER);
 
 	if (!shader->lib) {
-		fprintf(stderr, "GPUShader, object creation failed.\n");
+		GPU_print_error("GPUShader: object creation failed.\n");
 		GPU_shader_free(shader);
 		return NULL;
 	}
@@ -1458,9 +1445,7 @@ void GPU_shader_bind(GPUShader *shader)
 	if (GG.extdisabled || !MX_shader_objects)
 		return;
 
-	GPU_print_error("Pre Shader Bind");
-	glUseProgram(shader->object);
-	GPU_print_error("Post Shader Bind");
+	GPU_CHECK(glUseProgram(shader->object));
 }
 
 void GPU_shader_unbind(void)
@@ -1468,9 +1453,7 @@ void GPU_shader_unbind(void)
 	if (GG.extdisabled || !MX_shader_objects)
 		return;
 
-	GPU_print_error("Pre Shader Unbind");
-	glUseProgram(0);
-	GPU_print_error("Post Shader Unbind");
+	GPU_CHECK(glUseProgram(0));
 }
 
 void GPU_shader_free(GPUShader *shader)
@@ -1501,7 +1484,7 @@ void GPU_shader_uniform_vector(GPUShader *UNUSED(shader), int location, int leng
 	if (GG.extdisabled || !MX_shader_objects || location == -1)
 		return;
 
-	GPU_print_error("Pre Uniform Vector");
+	GPU_ASSERT_NO_GL_ERRORS("Pre Uniform Vector");
 
 	if (length == 1) glUniform1fv(location, arraysize, value);
 	else if (length == 2) glUniform2fv(location, arraysize, value);
@@ -1510,7 +1493,7 @@ void GPU_shader_uniform_vector(GPUShader *UNUSED(shader), int location, int leng
 	else if (length == 9) glUniformMatrix3fv(location, arraysize, 0, value);
 	else if (length == 16) glUniformMatrix4fv(location, arraysize, 0, value);
 
-	GPU_print_error("Post Uniform Vector");
+	GPU_ASSERT_NO_GL_ERRORS("Post Uniform Vector");
 }
 
 void GPU_shader_uniform_int(GPUShader *UNUSED(shader), int location, int value)
@@ -1518,9 +1501,7 @@ void GPU_shader_uniform_int(GPUShader *UNUSED(shader), int location, int value)
 	if (GG.extdisabled || !MX_shader_objects || location == -1)
 		return;
 
-	GPU_print_error("Pre Uniform Int");
-	glUniform1i(location, value);
-	GPU_print_error("Post Uniform Int");
+	GPU_CHECK(glUniform1i(location, value));
 }
 
 void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUTexture *tex)
@@ -1538,7 +1519,7 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 	if (location == -1)
 		return;
 
-	GPU_print_error("Pre Uniform Texture");
+	GPU_ASSERT_NO_GL_ERRORS("Pre Uniform Texture");
 
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0 + tex->number);
 
@@ -1551,7 +1532,7 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 	glEnable(tex->target);
 	if (tex->number != 0) glActiveTexture(GL_TEXTURE0);
 
-	GPU_print_error("Post Uniform Texture");
+	GPU_ASSERT_NO_GL_ERRORS("Post Uniform Texture");
 }
 
 int GPU_shader_get_attribute(GPUShader *shader, const char *name)
@@ -1561,11 +1542,7 @@ int GPU_shader_get_attribute(GPUShader *shader, const char *name)
 	if (GG.extdisabled || !MX_vertex_shader)
 		return -1;
 
-	GPU_print_error("Pre Get Attribute");
-
-	index = glGetAttribLocation(shader->object, name);
-
-	GPU_print_error("Post Get Attribute");
+	GPU_CHECK(index = glGetAttribLocation(shader->object, name));
 
 	return index;
 }
@@ -1588,7 +1565,7 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 	}
 
 	if (retval == NULL)
-		printf("Unable to create a GPUShader for builtin shader: %d\n", shader);
+		fprintf(stderr, "Unable to create a GPUShader for builtin shader: %d\n", shader);
 
 	return retval;
 }
@@ -1639,7 +1616,7 @@ GPUPixelBuffer *gpu_pixelbuffer_create(int x, int y, int halffloat, int numbuffe
 	glGenBuffers(pb->numbuffers, pb->bindcode);
 
 	if (!pb->bindcode[0]) {
-		fprintf(stderr, "GPUPixelBuffer allocation failed\n");
+		GPU_print_error("GPUPixelBuffer: allocation failed\n");
 		GPU_pixelbuffer_free(pb);
 		return NULL;
 	}
@@ -1663,7 +1640,7 @@ void GPU_pixelbuffer_texture(GPUTexture *tex, GPUPixelBuffer *pb)
 		/*memcpy(pixels, _oImage.data(), pb->datasize);*/
 
 		if (!glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER)) {
-			fprintf(stderr, "Could not unmap opengl PBO\n");
+			GPU_print_error("Could not unmap opengl PBO\n");
 			break;
 		}
 	}
@@ -1681,7 +1658,7 @@ static int pixelbuffer_map_into_gpu(GLuint bindcode)
 	/* do stuff in pixels */
 
 	if (!glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER)) {
-		fprintf(stderr, "Could not unmap opengl PBO\n");
+		GPU_print_error("Could not unmap opengl PBO\n");
 		return 0;
 	}
 	

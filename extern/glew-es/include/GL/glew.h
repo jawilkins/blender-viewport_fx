@@ -11238,6 +11238,20 @@ typedef void (GLAPIENTRY * PFNGLPUSHDEBUGGROUPPROC) (GLenum source, GLuint id, G
 #define glPopDebugGroup GLEW_GET_FUN(__glewPopDebugGroup)
 #define glPushDebugGroup GLEW_GET_FUN(__glewPushDebugGroup)
 
+#ifndef GLEW_NO_ES
+#define glDebugMessageCallbackKHR GLEW_GET_FUN(__glewDebugMessageCallback)
+#define glDebugMessageControlKHR GLEW_GET_FUN(__glewDebugMessageControl)
+#define glDebugMessageInsertKHR GLEW_GET_FUN(__glewDebugMessageInsert)
+#define glGetDebugMessageLogKHR GLEW_GET_FUN(__glewGetDebugMessageLog)
+#define glGetObjectLabelKHR GLEW_GET_FUN(__glewGetObjectLabel)
+#define glGetObjectPtrLabelKHR GLEW_GET_FUN(__glewGetObjectPtrLabel)
+#define glGetPointervKHR GLEW_GET_FUN(__glewGetPointerv)
+#define glObjectLabelKHR GLEW_GET_FUN(__glewObjectLabel)
+#define glObjectPtrLabelKHR GLEW_GET_FUN(__glewObjectPtrLabel)
+#define glPopDebugGroupKHR GLEW_GET_FUN(__glewPopDebugGroup)
+#define glPushDebugGroupKHR GLEW_GET_FUN(__glewPushDebugGroup)
+#endif
+
 #define GLEW_KHR_debug GLEW_GET_VAR(__GLEW_KHR_debug)
 
 #endif /* !GL_KHR_debug */

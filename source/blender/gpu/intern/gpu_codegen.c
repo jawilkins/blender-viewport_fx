@@ -44,6 +44,7 @@
 #include "BLI_dynstr.h"
 #include "BLI_ghash.h"
 
+#include "GPU_debug.h"
 #include "GPU_material.h"
 #include "GPU_extensions.h"
 
@@ -175,7 +176,7 @@ static void gpu_parse_functions_string(GHash *hash, char *code)
 		}
 
 		if (function->name[0] == '\0' || function->totparam == 0) {
-			fprintf(stderr, "GPU functions parse error.\n");
+			GPU_print_error("GPU functions parse error.\n");
 			MEM_freeN(function);
 			break;
 		}

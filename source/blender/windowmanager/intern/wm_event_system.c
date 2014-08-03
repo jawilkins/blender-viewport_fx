@@ -70,6 +70,7 @@
 #include "RNA_access.h"
 
 #include "BIF_gl.h"
+#include "GPU_debug.h"
 
 #include "UI_interface.h"
 
@@ -2383,12 +2384,7 @@ void wm_event_do_handlers(bContext *C)
 	/* update key configuration after handling events */
 	WM_keyconfig_update(wm);
 
-	if (G.debug) {
-		GLenum error = glGetError();
-		if (error != GL_NO_ERROR) {
-			printf("GL error: %s\n", gluErrorString(error));
-		}
-	}
+	GPU_REPORT_GL_ERRORS("wm_event_do_handlers");
 }
 
 /* ********** filesector handling ************ */
