@@ -127,12 +127,11 @@
 #undef glBindAttribLocation
 #undef glGetUniformLocation
 
-/* Would normally remove GLEW_ARB_vertex_program and GLEW_ARB_fragment_program,
+/* Would remove GLEW_ARB_vertex_program and GLEW_ARB_fragment_program,
  * but Blender uses a legacy assembly language GL_ARB_fragment_program in drawvolume.c,
- * and the ARB suffixed functions required for that are not a part of MXContext,
- * so they should be accessed normally.
+ * and the ARB suffixed functions required for that are not a part of MXContext
+ * because there is not a non-extension version of those functions.
  */
-
 /*#undef GLEW_ARB_vertex_program  */
 /*#undef GLEW_ARB_fragment_program*/
 
@@ -501,41 +500,41 @@
 
 #define MX_multitexture MX_CONTEXT(multitexture)
 
-#define glActiveTexture       MX_CONTEXT(ActiveTexture      )
-#define glClientActiveTexture MX_CONTEXT(ClientActiveTexture)
+#define glActiveTexture MX_CONTEXT(ActiveTexture)
 #ifdef WITH_GL_PROFILE_COMPAT
-#  define glMultiTexCoord1d  MX_CONTEXT(MultiTexCoord1d )
-#  define glMultiTexCoord1dv MX_CONTEXT(MultiTexCoord1dv)
-#  define glMultiTexCoord1f  MX_CONTEXT(MultiTexCoord1f )
-#  define glMultiTexCoord1fv MX_CONTEXT(MultiTexCoord1fv)
-#  define glMultiTexCoord1i  MX_CONTEXT(MultiTexCoord1i )
-#  define glMultiTexCoord1iv MX_CONTEXT(MultiTexCoord1iv)
-#  define glMultiTexCoord1s  MX_CONTEXT(MultiTexCoord1s )
-#  define glMultiTexCoord1sv MX_CONTEXT(MultiTexCoord1sv)
-#  define glMultiTexCoord2d  MX_CONTEXT(MultiTexCoord2d )
-#  define glMultiTexCoord2dv MX_CONTEXT(MultiTexCoord2dv)
-#  define glMultiTexCoord2f  MX_CONTEXT(MultiTexCoord2f )
-#  define glMultiTexCoord2fv MX_CONTEXT(MultiTexCoord2fv)
-#  define glMultiTexCoord2i  MX_CONTEXT(MultiTexCoord2i )
-#  define glMultiTexCoord2iv MX_CONTEXT(MultiTexCoord2iv)
-#  define glMultiTexCoord2s  MX_CONTEXT(MultiTexCoord2s )
-#  define glMultiTexCoord2sv MX_CONTEXT(MultiTexCoord2sv)
-#  define glMultiTexCoord3d  MX_CONTEXT(MultiTexCoord3d )
-#  define glMultiTexCoord3dv MX_CONTEXT(MultiTexCoord3dv)
-#  define glMultiTexCoord3f  MX_CONTEXT(MultiTexCoord3f )
-#  define glMultiTexCoord3fv MX_CONTEXT(MultiTexCoord3fv)
-#  define glMultiTexCoord3i  MX_CONTEXT(MultiTexCoord3i )
-#  define glMultiTexCoord3iv MX_CONTEXT(MultiTexCoord3iv)
-#  define glMultiTexCoord3s  MX_CONTEXT(MultiTexCoord3s )
-#  define glMultiTexCoord3sv MX_CONTEXT(MultiTexCoord3sv)
-#  define glMultiTexCoord4d  MX_CONTEXT(MultiTexCoord4d )
-#  define glMultiTexCoord4dv MX_CONTEXT(MultiTexCoord4dv)
-#  define glMultiTexCoord4f  MX_CONTEXT(MultiTexCoord4f )
-#  define glMultiTexCoord4fv MX_CONTEXT(MultiTexCoord4fv)
-#  define glMultiTexCoord4i  MX_CONTEXT(MultiTexCoord4i )
-#  define glMultiTexCoord4iv MX_CONTEXT(MultiTexCoord4iv)
-#  define glMultiTexCoord4s  MX_CONTEXT(MultiTexCoord4s )
-#  define glMultiTexCoord4sv MX_CONTEXT(MultiTexCoord4sv)
+#  define glClientActiveTexture MX_CONTEXT(ClientActiveTexture)
+#  define glMultiTexCoord1d     MX_CONTEXT(MultiTexCoord1d    )
+#  define glMultiTexCoord1dv    MX_CONTEXT(MultiTexCoord1dv   )
+#  define glMultiTexCoord1f     MX_CONTEXT(MultiTexCoord1f    )
+#  define glMultiTexCoord1fv    MX_CONTEXT(MultiTexCoord1fv   )
+#  define glMultiTexCoord1i     MX_CONTEXT(MultiTexCoord1i    )
+#  define glMultiTexCoord1iv    MX_CONTEXT(MultiTexCoord1iv   )
+#  define glMultiTexCoord1s     MX_CONTEXT(MultiTexCoord1s    )
+#  define glMultiTexCoord1sv    MX_CONTEXT(MultiTexCoord1sv   )
+#  define glMultiTexCoord2d     MX_CONTEXT(MultiTexCoord2d    )
+#  define glMultiTexCoord2dv    MX_CONTEXT(MultiTexCoord2dv   )
+#  define glMultiTexCoord2f     MX_CONTEXT(MultiTexCoord2f    )
+#  define glMultiTexCoord2fv    MX_CONTEXT(MultiTexCoord2fv   )
+#  define glMultiTexCoord2i     MX_CONTEXT(MultiTexCoord2i    )
+#  define glMultiTexCoord2iv    MX_CONTEXT(MultiTexCoord2iv   )
+#  define glMultiTexCoord2s     MX_CONTEXT(MultiTexCoord2s    )
+#  define glMultiTexCoord2sv    MX_CONTEXT(MultiTexCoord2sv   )
+#  define glMultiTexCoord3d     MX_CONTEXT(MultiTexCoord3d    )
+#  define glMultiTexCoord3dv    MX_CONTEXT(MultiTexCoord3dv   )
+#  define glMultiTexCoord3f     MX_CONTEXT(MultiTexCoord3f    )
+#  define glMultiTexCoord3fv    MX_CONTEXT(MultiTexCoord3fv   )
+#  define glMultiTexCoord3i     MX_CONTEXT(MultiTexCoord3i    )
+#  define glMultiTexCoord3iv    MX_CONTEXT(MultiTexCoord3iv   )
+#  define glMultiTexCoord3s     MX_CONTEXT(MultiTexCoord3s    )
+#  define glMultiTexCoord3sv    MX_CONTEXT(MultiTexCoord3sv   )
+#  define glMultiTexCoord4d     MX_CONTEXT(MultiTexCoord4d    )
+#  define glMultiTexCoord4dv    MX_CONTEXT(MultiTexCoord4dv   )
+#  define glMultiTexCoord4f     MX_CONTEXT(MultiTexCoord4f    )
+#  define glMultiTexCoord4fv    MX_CONTEXT(MultiTexCoord4fv   )
+#  define glMultiTexCoord4i     MX_CONTEXT(MultiTexCoord4i    )
+#  define glMultiTexCoord4iv    MX_CONTEXT(MultiTexCoord4iv   )
+#  define glMultiTexCoord4s     MX_CONTEXT(MultiTexCoord4s    )
+#  define glMultiTexCoord4sv    MX_CONTEXT(MultiTexCoord4sv   )
 #endif
 
 #define MX_shader_objects MX_CONTEXT(shader_objects)

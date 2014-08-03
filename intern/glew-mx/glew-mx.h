@@ -89,7 +89,7 @@ typedef struct MXContext {
 
 	GLboolean multitexture;
 
-	PFNGLACTIVETEXTUREPROC       ActiveTexture;
+	PFNGLACTIVETEXTUREPROC ActiveTexture;
 #ifdef WITH_GL_PROFILE_COMPAT
 	PFNGLCLIENTACTIVETEXTUREPROC ClientActiveTexture;
 	PFNGLMULTITEXCOORD1DPROC     MultiTexCoord1d;
