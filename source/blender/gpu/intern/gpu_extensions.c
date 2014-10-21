@@ -313,9 +313,6 @@ static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
 	switch (status) {
 		case GL_FRAMEBUFFER_COMPLETE:
 			break;
-		case GL_INVALID_OPERATION:
-			err= "Invalid operation";
-			break;
 		case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
 			err= "Incomplete attachment";
 			break;
@@ -339,14 +336,9 @@ static void GPU_print_framebuffer_error(GLenum status, char err_out[256])
 			break;
 	}
 
-	if (err_out) {
-		BLI_snprintf(err_out, 256, "GPUFrameBuffer: framebuffer incomplete error %d '%s'",
-			(int)status, err);
-	}
-	else {
-		fprintf(stderr, "GPUFrameBuffer: framebuffer incomplete error %d '%s'\n",
-			(int)status, err);
-	}
+	GPU_print_error(err_out, 256,
+		"GPUFrameBuffer: framebuffer incomplete error %d '%s'\n",
+		(int)status, err);
 }
 
 /* GPUTexture */
@@ -411,14 +403,7 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	glGenTextures(1, &tex->bindcode);
 
 	if (!tex->bindcode) {
-		if (err_out) {
-			BLI_snprintf(err_out, 256, "GPUTexture: texture create failed: %d",
-				(int)glGetError());
-		}
-		else {
-			fprintf(stderr, "GPUTexture: texture create failed: %d\n",
-				(int)glGetError());
-		}
+		GPU_REPORT_GL_ERRORS(err_out, 256, "GPUTexture: texture create failed.");
 		GPU_texture_free(tex);
 		return NULL;
 	}
@@ -526,8 +511,7 @@ GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *
 	glGenTextures(1, &tex->bindcode);
 
 	if (!tex->bindcode) {
-		fprintf(stderr, "GPUTexture: texture create failed: %d\n",
-			(int)glGetError());
+		GPU_REPORT_GL_ERRORS(NULL, 0, "GPUTexture: texture create failed.");
 		GPU_texture_free(tex);
 		return NULL;
 	}
@@ -618,7 +602,7 @@ GPUTexture *GPU_texture_from_blender(Image *ima, ImageUser *iuser, bool is_data,
 	ima->gputexture= tex;
 
 	if (!glIsTexture(tex->bindcode)) {
-		GPU_print_error("Blender Texture Not Loaded");
+		GPU_print_error(NULL, 0, "Blender Texture Not Loaded");
 	}
 	else {
 		glBindTexture(GL_TEXTURE_2D, tex->bindcode);
@@ -665,7 +649,7 @@ GPUTexture *GPU_texture_from_preview(PreviewImage *prv, int mipmap)
 	prv->gputexture[0]= tex;
 	
 	if (!glIsTexture(tex->bindcode)) {
-		GPU_print_error("Blender Texture Not Loaded");
+		GPU_print_error(NULL, 0, "Blender Texture Not Loaded");
 	}
 	else {
 		glBindTexture(GL_TEXTURE_2D, tex->bindcode);
@@ -770,7 +754,7 @@ void GPU_texture_bind(GPUTexture *tex, int number)
 		return;
 
 	if (number >= GG.maxtextures) {
-		GPU_print_error("Not enough texture slots.");
+		GPU_print_error(NULL, 0, "Not enough texture slots.");
 		return;
 	}
 
@@ -799,7 +783,7 @@ void GPU_texture_unbind(GPUTexture *tex)
 		return;
 
 	if (tex->number >= GG.maxtextures) {
-		GPU_print_error("Not enough texture slots.");
+		GPU_print_error(NULL, 0, "Not enough texture slots.");
 		return;
 	}
 
@@ -821,7 +805,7 @@ void GPU_texture_free(GPUTexture *tex)
 	tex->refcount--;
 
 	if (tex->refcount < 0)
-		GPU_print_error("GPUTexture: negative refcount\n");
+		GPU_print_error(NULL, 0, "GPUTexture: negative refcount\n");
 	
 	if (tex->refcount == 0) {
 		if (tex->fb)
@@ -882,8 +866,7 @@ GPUFrameBuffer *GPU_framebuffer_create(void)
 	glGenFramebuffers(1, &fb->object);
 
 	if (!fb->object) {
-		fprintf(stderr, "GPUFFrameBuffer: framebuffer gen failed. %d\n",
-			(int)glGetError());
+		GPU_REPORT_GL_ERRORS(NULL, 0, "GPUFFrameBuffer: framebuffer gen failed.");
 		GPU_framebuffer_free(fb);
 		return NULL;
 	}
@@ -895,10 +878,12 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err
 {
 	GLenum status;
 	GLenum attachment;
-	GLenum error;
 
 	if (GG.extdisabled || !MX_framebuffer_object)
 		return 0;
+
+	/* clear errors */
+	GPU_REPORT_GL_ERRORS(NULL, 0, "Pre: GPU_framebuffer_texture_attach");
 
 	if (tex->depth)
 		attachment = GL_DEPTH_ATTACHMENT;
@@ -911,11 +896,8 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err
 	glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, 
 		tex->target, tex->bindcode, 0);
 
-	error = glGetError();
-
-	if (error == GL_INVALID_OPERATION) {
+	if (GPU_REPORT_GL_ERRORS(err_out, 256, "GPU_framebuffer_texture_attach")) {
 		GPU_framebuffer_restore();
-		GPU_print_framebuffer_error(error, err_out);
 		return 0;
 	}
 
@@ -1344,7 +1326,7 @@ GPUShader *GPU_shader_create(const char *nickname, const char *vertexcode, const
 	    (vertexcode && !shader->vertex) ||
 	    (fragcode && !shader->fragment))
 	{
-		GPU_print_error("GPUShader: object creation failed.\n");
+		GPU_print_error(NULL, 0, "GPUShader: object creation failed.\n");
 		GPU_shader_free(shader);
 		return NULL;
 	}
@@ -1509,7 +1491,7 @@ void GPU_shader_uniform_texture(GPUShader *UNUSED(shader), int location, GPUText
 	GLenum arbnumber;
 
 	if (tex->number >= GG.maxtextures) {
-		GPU_print_error("Not enough texture slots.");
+		GPU_print_error(NULL, 0, "Not enough texture slots.");
 		return;
 	}
 		
@@ -1565,7 +1547,9 @@ GPUShader *GPU_shader_get_builtin_shader(GPUBuiltinShader shader)
 	}
 
 	if (retval == NULL)
-		fprintf(stderr, "Unable to create a GPUShader for builtin shader: %d\n", shader);
+		GPU_print_error(NULL, 0,
+			"Unable to create a GPUShader for builtin shader: %d\n",
+			shader);
 
 	return retval;
 }

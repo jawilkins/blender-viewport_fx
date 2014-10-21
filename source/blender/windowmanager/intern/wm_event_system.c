@@ -2384,7 +2384,7 @@ void wm_event_do_handlers(bContext *C)
 	/* update key configuration after handling events */
 	WM_keyconfig_update(wm);
 
-	GPU_REPORT_GL_ERRORS("wm_event_do_handlers");
+	GPU_REPORT_GL_ERRORS(NULL, 0, "wm_event_do_handlers");
 }
 
 /* ********** filesector handling ************ */

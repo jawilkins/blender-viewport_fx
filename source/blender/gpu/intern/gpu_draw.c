@@ -766,12 +766,12 @@ bool GPU_upload_dxt_texture(ImBuf *ibuf)
 	}
 
 	if (format == 0) {
-		GPU_print_error("Unable to find a suitable DXT compression, falling back to uncompressed\n");
+		GPU_print_error(NULL, 0, "Unable to find a suitable DXT compression, falling back to uncompressed\n");
 		return false;
 	}
 
 	if (!is_power_of_2_resolution(width, height)) {
-		GPU_print_error("Unable to load non-power-of-two DXT image resolution, falling back to uncompressed\n");
+		GPU_print_error(NULL, 0, "Unable to load non-power-of-two DXT image resolution, falling back to uncompressed\n");
 		return false;
 	}
 

@@ -170,13 +170,13 @@ static void gpu_parse_functions_string(GHash *hash, char *code)
 				function->totparam++;
 			}
 			else {
-				fprintf(stderr, "GPU invalid function parameter in %s.\n", function->name);
+				GPU_print_error(NULL, 0, "GPU invalid function parameter in %s.\n", function->name);
 				break;
 			}
 		}
 
 		if (function->name[0] == '\0' || function->totparam == 0) {
-			GPU_print_error("GPU functions parse error.\n");
+			GPU_print_error(NULL, 0, "GPU functions parse error.\n");
 			MEM_freeN(function);
 			break;
 		}
@@ -863,7 +863,7 @@ static void GPU_node_link_free(GPUNodeLink *link)
 	link->users--;
 
 	if (link->users < 0)
-		fprintf(stderr, "GPU_node_link_free: negative refcount\n");
+		GPU_print_error(NULL, 0, "GPU_node_link_free: negative refcount\n");
 	
 	if (link->users == 0) {
 		if (link->output)
@@ -1238,7 +1238,7 @@ bool GPU_link(GPUMaterial *mat, const char *name, ...)
 
 	function = GPU_lookup_function(name);
 	if (!function) {
-		fprintf(stderr, "GPU failed to find function %s\n", name);
+		GPU_print_error(NULL, 0, "GPU failed to find function %s\n", name);
 		return 0;
 	}
 
@@ -1274,7 +1274,7 @@ bool GPU_stack_link(GPUMaterial *mat, const char *name, GPUNodeStack *in, GPUNod
 
 	function = GPU_lookup_function(name);
 	if (!function) {
-		fprintf(stderr, "GPU failed to find function %s\n", name);
+		GPU_print_error(NULL, 0, "GPU failed to find function %s\n", name);
 		return 0;
 	}
 

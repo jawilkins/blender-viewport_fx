@@ -31,6 +31,7 @@
  */
 
 
+#include <errno.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -196,6 +197,53 @@ size_t BLI_snprintf(char *__restrict dst, size_t maxncpy, const char *__restrict
 
 	va_start(arg, format);
 	n = BLI_vsnprintf(dst, maxncpy, format, arg);
+	va_end(arg);
+
+	return n;
+}
+
+/**
+ * Portable replacement for #vasprintf
+ */
+size_t BLI_vasprintf(char **__restrict strp, const char *__restrict format, va_list arg)
+{
+	int count;
+	size_t n;
+
+	count = _vscprintf(format, arg) + 1;
+
+	if (count >= 0) {
+		*strp = (char*)malloc((count*sizeof(char)));
+
+		if (*strp) {
+#if defined(_MSC_VER)
+			n = (size_t)_vsnprintf_s(*strp, count, count-1, format, arg); 
+#else
+			n = (size_t)_vsnprintf(*strp, count, format, arg);
+#endif
+		}
+		else {
+			errno = ENOMEM;
+			n = (size_t)-1;
+		}
+	}
+	else {
+		n = (size_t)-1;
+	}
+
+	return n;
+}
+
+/**
+ * Portable replacement for #asprintf
+ */
+size_t BLI_asprintf(char **__restrict strp, const char *__restrict format, ... )
+{
+	va_list arg;
+	size_t n;
+
+	va_start(arg, format);
+	n = BLI_vasprintf(strp, format, arg);
 	va_end(arg);
 
 	return n;

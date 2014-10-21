@@ -54,6 +54,7 @@
 #include "ED_view3d.h"
 #include "ED_screen.h"
 
+#include "GPU_debug.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
@@ -457,6 +458,8 @@ static int wm_triple_gen_textures(wmWindow *win, wmDrawTriple *triple)
 		split_width(winsize_y, MAX_N_TEX, triple->y, &triple->ny);
 	}
 
+	GPU_REPORT_GL_ERRORS(NULL, 0, "Pre: wm_triple_gen_textures");
+
 	/* generate texture names */
 	glGenTextures(triple->nx * triple->ny, triple->bind);
 
@@ -489,8 +492,8 @@ static int wm_triple_gen_textures(wmWindow *win, wmDrawTriple *triple)
 			glBindTexture(triple->target, 0);
 
 			/* not sure if this works everywhere .. */
-			if (glGetError() == GL_OUT_OF_MEMORY) {
-				printf("WM: failed to allocate texture for triple buffer drawing (out of memory).\n");
+			if (GPU_REPORT_GL_ERRORS(NULL, 0, "wm_triple_gen_textures")) {
+				GPU_print_error(NULL, 0, "WM: failed to allocate texture for triple buffer drawing (out of memory).\n");
 				return 0;
 			}
 		}

@@ -34,6 +34,7 @@
 
 #include "GPU_glew.h"
 
+#include "BLI_compiler_attrs.h"
 #include "BLI_utildefines.h"
 
 #ifdef WITH_GPU_DEBUG
@@ -60,17 +61,18 @@ extern "C" {
 #  endif
 
 
-bool gpu_report_gl_errors  (const char *file, int line, const char *str);
-void gpu_debug_print       (const char *str);
+bool gpu_report_gl_errors  (const char *__restrict file, int line, char *__restrict out, size_t size, const char *__restrict str, GLenum test);
+void gpu_debug_print       (const char *format, ... ) ATTR_NONNULL(1) ATTR_PRINTF_FORMAT(1);
 void gpu_state_print       (void);
 void gpu_string_marker     (size_t size, const char *str);
-void gpu_assert_no_gl_errors(const char *file, int line, const char *str, bool do_abort);
+void gpu_assert_no_gl_errors(const char *__restrict file, int line, const char *__restrict str, bool do_abort);
 
-#  define GPU_REPORT_GL_ERRORS(str)    gpu_report_gl_errors(__FILE__, __LINE__, (str))
-#  define GPU_DEBUG_PRINT(str)         gpu_debug_print(str)
-#  define GPU_STATE_PRINT()            gpu_state_print()
-#  define GPU_STRING_MARKER(size, str) gpu_string_marker((size), (str))
-#  define GPU_ASSERT_NO_GL_ERRORS(str) gpu_assert_no_gl_errors(__FILE__, __LINE__, (str), true)
+#  define GPU_REPORT_GL_ERRORS(out, size, str) gpu_report_gl_errors(__FILE__, __LINE__, (out), (size), (str), GL_NO_ERROR)
+#  define GPU_TEST_GL_ERROR(str, test)         gpu_report_gl_errors(__FILE__, __LINE__, NULL, 0, (str), (test))
+#  define GPU_DEBUG_PRINT(str)                 gpu_debug_print(str)
+#  define GPU_STATE_PRINT()                    gpu_state_print()
+#  define GPU_STRING_MARKER(size, str)         gpu_string_marker((size), (str))
+#  define GPU_ASSERT_NO_GL_ERRORS(str)         gpu_assert_no_gl_errors(__FILE__, __LINE__, (str), true)
 
 #  define GPU_CHECK(glProcCall)                      \
        (                                             \
@@ -81,17 +83,18 @@ void gpu_assert_no_gl_errors(const char *file, int line, const char *str, bool d
 
 #else /* WITH_GPU_DEBUG */
 
-#  define GPU_ASSERT(test)             ((void)0)
-#  define GPU_ABORT()                  ((void)0)
+#  define GPU_ASSERT(test) ((void)0)
+#  define GPU_ABORT()      ((void)0)
 
-bool gpu_report_gl_errors(const char *str);
+bool gpu_report_gl_errors(char *__restrict out, size_t size, const char *__restrict str, GLenum test);
 
-#  define GPU_REPORT_GL_ERRORS(str)    gpu_report_gl_errors(str)
-#  define GPU_DEBUG_PRINT(str)         ((void)(str))
-#  define GPU_STATE_PRINT()            ((void)0)
-#  define GPU_STRING_MARKER(len, str)  ((void)(size),(void)(str))
-#  define GPU_ASSERT_NO_GL_ERRORS(str) ((void)(str))
-#  define GPU_CHECK(glProcCall)        (glProcCall)
+#  define GPU_REPORT_GL_ERRORS(out, size, str) gpu_report_gl_errors((out), (size), (str), GL_NO_ERROR)
+#  define GPU_TEST_GL_ERROR(str, test)         gpu_report_gl_errors(NULL, 0, (str), (test))
+#  define GPU_DEBUG_PRINT(str)                 ((void)(str))
+#  define GPU_STATE_PRINT()                    ((void)0)
+#  define GPU_STRING_MARKER(len, str)          ((void)(size),(void)(str))
+#  define GPU_ASSERT_NO_GL_ERRORS(str)         ((void)(str))
+#  define GPU_CHECK(glProcCall)                (glProcCall)
 
 #endif /* WITH_GPU_DEBUG */
 
@@ -112,7 +115,7 @@ bool gpu_report_gl_errors(const char *str);
     } while (0)
 
 
-void GPU_print_error(const char *str);
+size_t GPU_print_error(char *__restrict out, size_t size, const char *__restrict format, ... ) ATTR_NONNULL(1, 3) ATTR_PRINTF_FORMAT(4, 5);
 
 const char *gpuErrorString(GLenum err); /* replacement for gluErrorString */
 

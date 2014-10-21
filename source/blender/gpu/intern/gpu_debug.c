@@ -35,19 +35,58 @@
 #include "BKE_global.h"
 #endif
 
+#include "BLI_string.h"
+
+#include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 
-void GPU_print_error(const char *str)
+static size_t va_print_error(char *__restrict out, size_t size,
+	const char *__restrict format, va_list arg)
 {
-	fprintf(stderr, "GPU: %s\n", str);
+	char *str = NULL;
+	size_t n;
+
+	BLI_vasprintf(&str, format, arg);
+
+	if (str != NULL) {
+		const char gpu_fmt[] = "GPU: %s\n";
+
+		if (out != NULL) {
+			n = BLI_snprintf(out, size, gpu_fmt, str);
+		}
+		else {
+			n = (size_t)fprintf(stderr, gpu_fmt, str);
+		}
+
+		free(str);
+	}
+	else {
+		 n = (size_t) -1;
+	}
+
+	return n;
+}
+
+
+size_t GPU_print_error(char *__restrict out, size_t size, const char *__restrict format, ... )
+{
+	va_list arg;
+	size_t n;
+
+	va_start(arg, format);
+	n = va_print_error(out, size, format, arg);
+	va_end(arg);
+
+	return n;
 }
 
 
 #define CASE_CODE_RETURN_STR(code) case code: return #code;
 
-static const char* gpu_gl_error_symbol(GLenum err)
+static const char *gpu_gl_error_symbol(GLenum err)
 {
 	switch(err) {
 		CASE_CODE_RETURN_STR(GL_NO_ERROR)
@@ -76,59 +115,7 @@ static const char* gpu_gl_error_symbol(GLenum err)
 #undef CASE_CODE_RETURN_STR
 
 
-#ifdef WITH_GPU_DEBUG
-bool gpu_report_gl_errors(const char *file, int line, const char *str)
-#else
-bool gpu_report_gl_errors(const char *str)
-#endif
-{
-	GLboolean gl_ok         = GL_TRUE;
-	GLenum    last_gl_error = GL_NO_ERROR;
-
-	for (;;) {
-		GLenum gl_error = glGetError();
-
-		if (gl_error == GL_NO_ERROR) {
-			break;
-		}
-		else {
-			gl_ok = GL_FALSE;
-
-			/* glGetError should have cleared the error flag, so if we get the
-			   same flag twice that means glGetError itself probably triggered
-			   the error. This happens on Windows if the GL context is invalid.
-			 */
-			{ bool no_repeat;
-			  GPU_ASSERT_RETURN(gl_error != last_gl_error, no_repeat, GL_FALSE); }
-
-#ifdef WITH_GPU_DEBUG
-			fprintf(
-				stderr,
-				"%s(%d): ``%s'' -> GL Error (0x%04X - %s): %s\n",
-				file,
-				line,
-				str,
-				gl_error,
-				gpu_gl_error_symbol(gl_error),
-				gpuErrorString(gl_error));
-#else
-			fprintf(
-				stderr,
-				"GL Error (0x%04X - %s): %s\n",
-				gl_error,
-				gpu_gl_error_symbol(gl_error),
-				gpuErrorString(gl_error));
-#endif
-
-			last_gl_error = gl_error;
-		}
-	}
-
-	return gl_ok;
-}
-
-
-const char* gpuErrorString(GLenum err)
+const char *gpuErrorString(GLenum err)
 {
 	switch(err) {
 		case GL_NO_ERROR:
@@ -175,6 +162,59 @@ const char* gpuErrorString(GLenum err)
 
 
 #ifdef WITH_GPU_DEBUG
+bool gpu_report_gl_errors(const char *__restrict file, int line, char *__restrict out, size_t size, const char *__restrict str, GLenum test)
+#else
+bool gpu_report_gl_errors(char *__restrict out, size_t size, const char *__restrict str, GLenum test)
+#endif
+{
+	GLboolean gl_ok         = GL_TRUE;
+	GLenum    last_gl_error = GL_NO_ERROR;
+
+	int i = 0;
+
+	for (;;) {
+		GLenum gl_error = glGetError();
+
+		if (gl_error == GL_NO_ERROR) {
+			break;
+		}
+		else {
+			if (test == GL_NO_ERROR || test == gl_error)
+				gl_ok = GL_FALSE;
+
+			/* glGetError should have cleared the error flag, so if we get the
+			   same flag twice that means glGetError itself probably triggered
+			   the error. This happens on Windows if the GL context is invalid.
+			 */
+			{ bool no_repeat;
+			  GPU_ASSERT_RETURN(gl_error != last_gl_error, no_repeat, GL_FALSE); }
+
+			i += GPU_print_error(
+				out + i, size - i,
+#ifdef WITH_GPU_DEBUG
+				"%s(%d):GL Error (0x%04X - %s): %s: %s\n",
+				file,
+				line,
+#else
+				"GL Error (0x%04X - %s): %s: %s\n",
+#endif
+				gl_error,
+				gpu_gl_error_symbol(gl_error),
+				gpuErrorString(gl_error),
+				str);
+
+			if (i >= size)
+				break;
+
+			last_gl_error = gl_error;
+		}
+	}
+
+	return gl_ok;
+}
+
+
+#ifdef WITH_GPU_DEBUG
 
 
 /* Debug callbacks need the same calling convention as OpenGL functions.
@@ -191,7 +231,7 @@ static void APIENTRY gpu_debug_proc(GLenum UNUSED(source), GLenum UNUSED(type), 
                                GLenum UNUSED(severity), GLsizei UNUSED(length),
                                const GLchar *message, const GLvoid *UNUSED(userParm))
 {
-	fprintf(stderr, "GL: %s\n", message);
+	fprintf(stderr, "GL Debug: %s\n", message);
 }
 
 
@@ -200,7 +240,7 @@ static void APIENTRY gpu_debug_proc_amd(GLuint UNUSED(id), GLenum UNUSED(categor
                                GLenum UNUSED(severity), GLsizei UNUSED(length),
                                const GLchar *message, const GLvoid *UNUSED(userParm))
 {
-	fprintf(stderr, "GL: %s\n", message);
+	fprintf(stderr, "GL Debug: %s\n", message);
 }
 #endif
 
@@ -368,14 +408,19 @@ void gpu_string_marker(size_t length, const char *buf)
 }
 
 
-void gpu_debug_print(const char *str)
+void gpu_debug_print(const char *format, ...)
 {
-	if (G.debug & G_DEBUG)
-		GPU_print_error(str);
+	if (G.debug & G_DEBUG) {
+		va_list arg;
+
+		va_start(arg, format);
+		n = va_print_error(NULL, 0, , format, arg);
+		va_end(arg);
+	}
 }
 
 
-void gpu_assert_no_gl_errors(const char* file, int line, const char* str)
+void gpu_assert_no_gl_errors(const char *__restrict file, int line, const char *__restrict str)
 {
 	GLboolean gl_ok = gpu_report_gl_errors(file, line, str);
 

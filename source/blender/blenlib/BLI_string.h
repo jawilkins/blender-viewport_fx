@@ -60,6 +60,10 @@ size_t BLI_snprintf(char *__restrict dst, size_t maxncpy, const char *__restrict
 
 size_t BLI_vsnprintf(char *__restrict dst, size_t maxncpy, const char *__restrict format, va_list arg) ATTR_PRINTF_FORMAT(3, 0);
 
+size_t BLI_vasprintf(char **__restrict strp, const char *__restrict format, va_list arg) ATTR_NONNULL(1, 2) ATTR_PRINTF_FORMAT(2, 0);
+
+size_t BLI_asprintf(char **__restrict strp, const char *__restrict format, ...) ATTR_NONNULL(1, 2) ATTR_PRINTF_FORMAT(2, 3);
+
 char *BLI_sprintfN(const char *__restrict format, ...) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1) ATTR_MALLOC ATTR_PRINTF_FORMAT(1, 2);
 
 size_t BLI_strescape(char *__restrict dst, const char *__restrict src, const size_t maxncpy) ATTR_NONNULL();

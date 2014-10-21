@@ -58,6 +58,8 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "GPU_debug.h"
+
 #include "ED_datafiles.h"
 #include "ED_render.h"
 
@@ -625,6 +627,8 @@ static void init_internal_icons(void)
 
 		/* we only use a texture for cards with non-power of two */
 		if (GPU_non_power_of_two_support()) {
+			GPU_REPORT_GL_ERRORS(NULL, 0, "Pre: init_internal_icons");
+
 			glGenTextures(1, &icongltex.id);
 
 			if (icongltex.id) {
@@ -653,7 +657,7 @@ static void init_internal_icons(void)
 				
 				glBindTexture(GL_TEXTURE_2D, 0);
 				
-				if (glGetError() == GL_OUT_OF_MEMORY) {
+				if (GPU_REPORT_GL_ERRORS(NULL, 0, "init_internal_icons")) {
 					glDeleteTextures(1, &icongltex.id);
 					icongltex.id = 0;
 				}

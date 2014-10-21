@@ -150,6 +150,29 @@ static OCIO_GLSLDrawState *allocateOpenGLState(void)
 	return state;
 }
 
+static void clear_gl_error(void)
+{
+	GLenum last_gl_error = GL_NO_ERROR;
+
+	for (;;) {
+		GLenum gl_error = glGetError();
+
+		if (gl_error == GL_NO_ERROR) {
+			break;
+		}
+		else {
+			/* glGetError should have cleared the error flag, so if we get the
+			   same flag twice that means glGetError itself probably triggered
+			   the error. This happens on Windows if the GL context is invalid.
+			 */
+			if (gl_error == last_gl_error)
+				break;
+
+			last_gl_error = gl_error;
+		}
+	}
+}
+
 /* Ensure LUT texture and array are allocated */
 static bool ensureLUT3DAllocated(OCIO_GLSLDrawState *state)
 {
@@ -171,7 +194,7 @@ static bool ensureLUT3DAllocated(OCIO_GLSLDrawState *state)
 	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 	/* clean glError buffer */
-	while (glGetError() != GL_NO_ERROR) {}
+	clear_gl_error();
 
 	glTexImage3D(GL_TEXTURE_3D, 0, GL_RGB16F_ARB,
 	             LUT3D_EDGE_SIZE, LUT3D_EDGE_SIZE, LUT3D_EDGE_SIZE,
@@ -203,7 +226,7 @@ static bool ensureCurveMappingAllocated(OCIO_GLSLDrawState *state, OCIO_CurveMap
 	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 
 	/* clean glError buffer */
-	while (glGetError() != GL_NO_ERROR) {}
+	clear_gl_error();
 
 	glTexImage1D(GL_TEXTURE_1D, 0, GL_RGBA16F_ARB, curve_mapping_settings->lut_size,
 	             0, GL_RGBA, GL_FLOAT, curve_mapping_settings->lut);
