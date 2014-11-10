@@ -229,6 +229,8 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_group_add);
 	WM_operatortype_append(OBJECT_OT_group_link);
 	WM_operatortype_append(OBJECT_OT_group_remove);
+	WM_operatortype_append(OBJECT_OT_group_unlink);
+	WM_operatortype_append(OBJECT_OT_grouped_select);
 
 	WM_operatortype_append(OBJECT_OT_hook_add_selob);
 	WM_operatortype_append(OBJECT_OT_hook_add_newob);
@@ -241,6 +243,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_bake_image);
 	WM_operatortype_append(OBJECT_OT_bake);
 	WM_operatortype_append(OBJECT_OT_drop_named_material);
+	WM_operatortype_append(OBJECT_OT_unlink_data);
 	WM_operatortype_append(OBJECT_OT_laplaciandeform_bind);
 
 	WM_operatortype_append(OBJECT_OT_lod_add);
@@ -317,6 +320,7 @@ void ED_keymap_object(wmKeyConfig *keyconf)
 	ED_keymap_proportional_cycle(keyconf, keymap);
 	ED_keymap_proportional_obmode(keyconf, keymap);
 
+	/* game-engine only, leave free for users to define */
 	WM_keymap_add_item(keymap, "VIEW3D_OT_game_start", PKEY, KM_PRESS, 0, 0);
 
 	kmi = WM_keymap_add_item(keymap, "OBJECT_OT_select_all", AKEY, KM_PRESS, 0, 0);

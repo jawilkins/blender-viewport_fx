@@ -429,6 +429,7 @@ EnumPropertyItem operator_return_items[] = {
 	{OPERATOR_FINISHED, "FINISHED", 0, "Finished", "When the operator is complete, operator exits"},
 	/* used as a flag */
 	{OPERATOR_PASS_THROUGH, "PASS_THROUGH", 0, "Pass Through", "Do nothing and pass the event on"},
+	{OPERATOR_INTERFACE, "INTERFACE", 0, "Interface", "Handled but not executed (popup menus)"},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -594,6 +595,17 @@ static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
 	return rptr;
 }
 
+static PointerRNA rna_PieMenu_layout_get(PointerRNA *ptr)
+{
+	struct uiPieMenu *pie = ptr->data;
+	uiLayout *layout = uiPieMenuLayout(pie);
+
+	PointerRNA rptr;
+	RNA_pointer_create(ptr->id.data, &RNA_UILayout, layout, &rptr);
+
+	return rptr;
+}
+
 static void rna_Window_screen_set(PointerRNA *ptr, PointerRNA value)
 {
 	wmWindow *win = (wmWindow *)ptr->data;
@@ -605,7 +617,7 @@ static void rna_Window_screen_set(PointerRNA *ptr, PointerRNA value)
 	win->newscreen = value.data;
 }
 
-int rna_Window_screen_assign_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+static int rna_Window_screen_assign_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
 {
 	bScreen *screen = (bScreen *)value.id.data;
 
@@ -1716,6 +1728,26 @@ static void rna_def_popupmenu(BlenderRNA *brna)
 	RNA_define_verify_sdna(1); /* not in sdna */
 }
 
+static void rna_def_piemenu(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "UIPieMenu", NULL);
+	RNA_def_struct_ui_text(srna, "PieMenu", "");
+	RNA_def_struct_sdna(srna, "uiPieMenu");
+
+	RNA_define_verify_sdna(0); /* not in sdna */
+
+	/* could wrap more, for now this is enough */
+	prop = RNA_def_property(srna, "layout", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "UILayout");
+	RNA_def_property_pointer_funcs(prop, "rna_PieMenu_layout_get",
+	                               NULL, NULL, NULL);
+
+	RNA_define_verify_sdna(1); /* not in sdna */
+}
+
 static void rna_def_window(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2078,6 +2110,7 @@ void RNA_def_wm(BlenderRNA *brna)
 	rna_def_event(brna);
 	rna_def_timer(brna);
 	rna_def_popupmenu(brna);
+	rna_def_piemenu(brna);
 	rna_def_window(brna);
 	rna_def_windowmanager(brna);
 	rna_def_keyconfig(brna);

@@ -162,17 +162,19 @@ typedef struct ThemeUI {
 	uiWidgetColors wcol_radio, wcol_option, wcol_toggle;
 	uiWidgetColors wcol_num, wcol_numslider;
 	uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item, wcol_tooltip;
-	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item;
+	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item, wcol_pie_menu;
 	
 	uiWidgetStateColors wcol_state;
 
 	uiPanelColors panel; /* depricated, but we keep it for do_versions (2.66.1) */
 
+	char emboss[4];
+
 	/* fac: 0 - 1 for blend factor, width in pixels */
 	float menu_shadow_fac;
 	short menu_shadow_width;
 	
-	short pad;
+	short pad[3];
 	
 	char iconfile[256];	// FILE_MAXFILE length
 	float icon_alpha;
@@ -245,6 +247,7 @@ typedef struct ThemeSpace {
 	char extra_edge_len[4], extra_edge_angle[4], extra_face_angle[4], extra_face_area[4];
 	char normal[4];
 	char vertex_normal[4];
+	char loop_normal[4];
 	char bone_solid[4], bone_pose[4], bone_pose_active[4];
 	char strip[4], strip_select[4];
 	char cframe[4];
@@ -262,7 +265,7 @@ typedef struct ThemeSpace {
 	char keyborder[4], keyborder_select[4];
 	
 	char console_output[4], console_input[4], console_info[4], console_error[4];
-	char console_cursor[4], console_select[4], pad1[4];
+	char console_cursor[4], console_select[4];
 	
 	char vertex_size, outline_width, facedot_size;
 	char noodle_curving;
@@ -533,6 +536,16 @@ typedef struct UserDef {
 	
 	float fcu_inactive_alpha;	/* opacity of inactive F-Curves in F-Curve Editor */
 	float pixelsize;			/* private, set by GHOST, to multiply DPI with */
+	int virtual_pixel;			/* virtual pixelsize mode */
+
+	short pie_interaction_type;     /* if keeping a pie menu spawn button pressed after this time, it turns into
+	                             * a drag/release pie menu */
+	short pie_initial_timeout;  /* direction in the pie menu will always be calculated from the initial position
+	                             * within this time limit */
+	short pie_animation_timeout;
+	short pie_menu_confirm;
+	short pie_menu_radius;        /* pie menu radius */
+	short pie_menu_threshold;     /* pie menu distance from center before a direction is set */
 
 	struct WalkNavigation walk_navigation;
 } UserDef;
@@ -843,6 +856,11 @@ typedef enum eImageDrawMethod {
 	IMAGE_DRAW_METHOD_2DTEXTURE = 2,
 	IMAGE_DRAW_METHOD_DRAWPIXELS = 3,
 } eImageDrawMethod;
+
+typedef enum eUserpref_VirtualPixel {
+	VIRTUAL_PIXEL_NATIVE = 0,
+	VIRTUAL_PIXEL_DOUBLE = 1,
+} eUserpref_VirtualPixel;
 
 #ifdef __cplusplus
 }

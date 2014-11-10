@@ -307,7 +307,7 @@ static int poselib_sanitize_exec(bContext *C, wmOperator *op)
 		/* check if any pose matches this */
 		/* TODO: don't go looking through the list like this every time... */
 		for (marker = act->markers.first; marker; marker = marker->next) {
-			if (IS_EQ(marker->frame, (double)ak->cfra)) {
+			if (IS_EQ((double)marker->frame, (double)ak->cfra)) {
 				marker->flag = -1;
 				break;
 			}
@@ -423,7 +423,7 @@ static int poselib_add_menu_invoke(bContext *C, wmOperator *op, const wmEvent *U
 	uiPupMenuEnd(C, pup);
 	
 	/* this operator is only for a menu, not used further */
-	return OPERATOR_CANCELLED;
+	return OPERATOR_INTERFACE;
 }
 
 

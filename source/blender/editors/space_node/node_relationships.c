@@ -67,12 +67,12 @@ typedef struct bNodeListItem {
 	struct bNode *node;
 } bNodeListItem;
 
-static int sort_nodes_locx(void *a, void *b)
+static int sort_nodes_locx(const void *a, const void *b)
 {
-	bNodeListItem *nli1 = (bNodeListItem *)a;
-	bNodeListItem *nli2 = (bNodeListItem *)b;
-	bNode *node1 = nli1->node;
-	bNode *node2 = nli2->node;
+	const bNodeListItem *nli1 = a;
+	const bNodeListItem *nli2 = b;
+	const bNode *node1 = nli1->node;
+	const bNode *node2 = nli2->node;
 
 	if (node1->locx > node2->locx)
 		return 1;
@@ -1005,40 +1005,6 @@ void NODE_OT_parent_set(wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = node_parent_set_exec;
-	ot->poll = ED_operator_node_editable;
-
-	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-}
-
-/* ****************** Clear Parent ******************* */
-
-static int node_parent_clear_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	SpaceNode *snode = CTX_wm_space_node(C);
-	bNodeTree *ntree = snode->edittree;
-	bNode *node;
-
-	for (node = ntree->nodes.first; node; node = node->next) {
-		if (node->flag & NODE_SELECT) {
-			nodeDetachNode(node);
-		}
-	}
-
-	WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, NULL);
-
-	return OPERATOR_FINISHED;
-}
-
-void NODE_OT_parent_clear(wmOperatorType *ot)
-{
-	/* identifiers */
-	ot->name = "Clear Parent";
-	ot->description = "Detach selected nodes";
-	ot->idname = "NODE_OT_parent_clear";
-
-	/* api callbacks */
-	ot->exec = node_parent_clear_exec;
 	ot->poll = ED_operator_node_editable;
 
 	/* flags */

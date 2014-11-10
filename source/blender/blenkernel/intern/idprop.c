@@ -251,7 +251,7 @@ void IDP_ResizeArray(IDProperty *prop, int newlen)
 	 * The growth pattern is:  0, 4, 8, 16, 25, 35, 46, 58, 72, 88, ...
 	 */
 	newsize = newlen;
-	newsize = (newsize >> 3) + (newsize < 9 ? 3 : 6) + newsize;\
+	newsize = (newsize >> 3) + (newsize < 9 ? 3 : 6) + newsize;
 
 	if (is_grow == false)
 		idp_resize_group_array(prop, newlen, prop->data.pointer);
@@ -571,23 +571,30 @@ void IDP_ReplaceGroupInGroup(IDProperty *dest, const IDProperty *src)
  * Checks if a property with the same name as prop exists, and if so replaces it.
  * Use this to preserve order!
  */
-void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
+void IDP_ReplaceInGroup_ex(IDProperty *group, IDProperty *prop, IDProperty *prop_exist)
 {
-	IDProperty *loop;
-
 	BLI_assert(group->type == IDP_GROUP);
 
-	if ((loop = IDP_GetPropertyFromGroup(group, prop->name))) {
-		BLI_insertlinkafter(&group->data.group, loop, prop);
+	BLI_assert(prop_exist == IDP_GetPropertyFromGroup(group, prop->name));
+
+	if ((prop_exist = IDP_GetPropertyFromGroup(group, prop->name))) {
+		BLI_insertlinkafter(&group->data.group, prop_exist, prop);
 		
-		BLI_remlink(&group->data.group, loop);
-		IDP_FreeProperty(loop);
-		MEM_freeN(loop);
+		BLI_remlink(&group->data.group, prop_exist);
+		IDP_FreeProperty(prop_exist);
+		MEM_freeN(prop_exist);
 	}
 	else {
 		group->len++;
 		BLI_addtail(&group->data.group, prop);
 	}
+}
+
+void IDP_ReplaceInGroup(IDProperty *group, IDProperty *prop)
+{
+	IDProperty *prop_exist = IDP_GetPropertyFromGroup(group, prop->name);
+
+	IDP_ReplaceInGroup_ex(group, prop, prop_exist);
 }
 
 /**
@@ -700,56 +707,6 @@ IDProperty *IDP_GetPropertyTypeFromGroup(IDProperty *prop, const char *name, con
 	return (idprop && idprop->type == type) ? idprop : NULL;
 }
 
-typedef struct IDPIter {
-	void *next;
-	IDProperty *parent;
-} IDPIter;
-
-/**
- * Get an iterator to iterate over the members of an id property group.
- * Note that this will automatically free the iterator once iteration is complete;
- * if you stop the iteration before hitting the end, make sure to call
- * IDP_FreeIterBeforeEnd().
- */
-void *IDP_GetGroupIterator(IDProperty *prop)
-{
-	IDPIter *iter;
-
-	BLI_assert(prop->type == IDP_GROUP);
-	iter = MEM_mallocN(sizeof(IDPIter), "IDPIter");
-	iter->next = prop->data.group.first;
-	iter->parent = prop;
-	return (void *) iter;
-}
-
-/**
- * Returns the next item in the iteration.  To use, simple for a loop like the following:
- * while (IDP_GroupIterNext(iter) != NULL) {
- *     ...
- * }
- */
-IDProperty *IDP_GroupIterNext(void *vself)
-{
-	IDPIter *self = (IDPIter *) vself;
-	Link *next = (Link *) self->next;
-	if (self->next == NULL) {
-		MEM_freeN(self);
-		return NULL;
-	}
-
-	self->next = next->next;
-	return (void *) next;
-}
-
-/**
- * Frees the iterator pointed to at vself, only use this if iteration is stopped early;
- * when the iterator hits the end of the list it'll automatically free itself.\
- */
-void IDP_FreeIterBeforeEnd(void *vself)
-{
-	MEM_freeN(vself);
-}
-
 /* Ok, the way things work, Groups free the ID Property structs of their children.
  * This is because all ID Property freeing functions free only direct data (not the ID Property
  * struct itself), but for Groups the child properties *are* considered
@@ -821,7 +778,7 @@ bool IDP_EqualsProperties_ex(IDProperty *prop1, IDProperty *prop2, const bool is
 		case IDP_INT:
 			return (IDP_Int(prop1) == IDP_Int(prop2));
 		case IDP_FLOAT:
-#if defined(DEBUG) && defined(WITH_PYTHON)
+#if !defined(NDEBUG) && defined(WITH_PYTHON)
 			{
 				float p1 = IDP_Float(prop1);
 				float p2 = IDP_Float(prop2);

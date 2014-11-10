@@ -22,6 +22,7 @@
  *
  * Contributors: Maarten Gribnau 05/2001
  *               Damien Plisson 09/2009
+ *               Jens Verwiebe   10/2014
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -55,6 +56,7 @@
 #endif
 
 #include "AssertMacros.h"
+
 
 #pragma mark KeyMap, mouse converters
 
@@ -313,8 +315,6 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction)
 @end
 
 
-
-
 #pragma mark initialization/finalization
 
 GHOST_SystemCocoa::GHOST_SystemCocoa()
@@ -530,7 +530,8 @@ GHOST_IWindow* GHOST_SystemCocoa::createWindow(
 
 	//Ensures window top left is inside this available rect
 	left = left > contentRect.origin.x ? left : contentRect.origin.x;
-	bottom = bottom > contentRect.origin.y ? bottom : contentRect.origin.y;
+	// Add contentRect.origin.y to respect docksize
+	bottom = bottom > contentRect.origin.y ? bottom + contentRect.origin.y : contentRect.origin.y;
 
 	window = new GHOST_WindowCocoa (this, title, left, bottom, width, height, state, type, stereoVisual, numOfAASamples);
 
@@ -635,7 +636,6 @@ GHOST_TSuccess GHOST_SystemCocoa::getButtons(GHOST_Buttons& buttons) const
 }
 
 
-
 #pragma mark Event handlers
 
 /**
@@ -700,10 +700,10 @@ bool GHOST_SystemCocoa::processEvents(bool waitForEvent)
 				handleKeyEvent(event);
 			}
 			else {
-				// For some reason NSApp is swallowing the key up events when command
+				// For some reason NSApp is swallowing the key up events when modifier
 				// key is pressed, even if there seems to be no apparent reason to do
 				// so, as a workaround we always handle these up events.
-				if ([event type] == NSKeyUp && ([event modifierFlags] & NSCommandKeyMask))
+				if ([event type] == NSKeyUp && ([event modifierFlags] & (NSCommandKeyMask | NSAlternateKeyMask)))
 					handleKeyEvent(event);
 
 				[NSApp sendEvent:event];
@@ -1570,7 +1570,6 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
 	
 	return GHOST_kSuccess;
 }
-
 
 
 #pragma mark Clipboard get/set

@@ -207,6 +207,7 @@ void rna_def_render_layer_common(struct StructRNA *srna, int scene);
 
 void rna_def_actionbone_group_common(struct StructRNA *srna, int update_flag, const char *update_cb);
 void rna_ActionGroup_colorset_set(struct PointerRNA *ptr, int value);
+int rna_ActionGroup_is_custom_colorset_get(struct PointerRNA *ptr);
 
 void rna_ID_name_get(struct PointerRNA *ptr, char *value);
 int rna_ID_name_length(struct PointerRNA *ptr);
@@ -417,7 +418,7 @@ void rna_RenderPass_rect_set(PointerRNA *ptr, const float *values);
 #if defined(__STDC_VERSION__) && (__STDC_VERSION__ >= 201112L)
 #  define USE_RNA_RANGE_CHECK
 #  define TYPEOF_MAX(x) \
-	_Generic(x, \
+	_Generic((x), \
 		bool: 1, \
 		char: CHAR_MAX, signed char: SCHAR_MAX, unsigned char: UCHAR_MAX, \
 		signed short: SHRT_MAX, unsigned short: USHRT_MAX, \
@@ -425,7 +426,7 @@ void rna_RenderPass_rect_set(PointerRNA *ptr, const float *values);
 		float: FLT_MAX, double: DBL_MAX)
 
 #  define TYPEOF_MIN(x) \
-	_Generic(x, \
+	_Generic((x), \
 		bool: 0, \
 		char: CHAR_MIN, signed char: SCHAR_MIN, unsigned char: 0, \
 		signed short: SHRT_MIN, unsigned short: 0, \

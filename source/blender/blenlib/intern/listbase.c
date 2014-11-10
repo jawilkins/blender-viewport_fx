@@ -130,6 +130,44 @@ bool BLI_remlink_safe(ListBase *listbase, void *vlink)
 }
 
 /**
+ * Swaps \a vlinka and \a vlinkb in the list. Assumes they are both already in the list!
+ */
+void BLI_listbase_swaplinks(ListBase *listbase, void *vlinka, void *vlinkb)
+{
+	Link *linka = vlinka;
+	Link *linkb = vlinkb;
+
+	if (!linka || !linkb)
+		return;
+
+	if (linkb->next == linka) {
+		SWAP(Link *, linka, linkb);
+	}
+
+	if (linka->next == linkb) {
+		linka->next = linkb->next;
+		linkb->prev = linka->prev;
+		linka->prev = linkb;
+		linkb->next = linka;
+	}
+	else {  /* Non-contiguous items, we can safely swap. */
+		SWAP(Link *, linka->prev, linkb->prev);
+		SWAP(Link *, linka->next, linkb->next);
+	}
+
+	/* Update neighbors of linka and linkb. */
+	if (linka->prev) linka->prev->next = linka;
+	if (linka->next) linka->next->prev = linka;
+	if (linkb->prev) linkb->prev->next = linkb;
+	if (linkb->next) linkb->next->prev = linkb;
+
+	if (listbase->last == linka) listbase->last = linkb;
+	else if (listbase->last == linkb) listbase->last = linka;
+	if (listbase->first == linka) listbase->first = linkb;
+	else if (listbase->first == linkb) listbase->first = linka;
+}
+
+/**
  * Removes the head from \a listbase and returns it.
  */
 void *BLI_pophead(ListBase *listbase)
@@ -173,7 +211,7 @@ void BLI_freelinkN(ListBase *listbase, void *vlink)
  * (which should return 1 iff its first arg should come after its second arg).
  * This uses insertion sort, so NOT ok for large list.
  */
-void BLI_sortlist(ListBase *listbase, int (*cmp)(void *, void *))
+void BLI_sortlist(ListBase *listbase, int (*cmp)(const void *, const void *))
 {
 	Link *current = NULL;
 	Link *previous = NULL;
@@ -195,7 +233,7 @@ void BLI_sortlist(ListBase *listbase, int (*cmp)(void *, void *))
 	}
 }
 
-void BLI_sortlist_r(ListBase *listbase, void *thunk, int (*cmp)(void *, void *, void *))
+void BLI_sortlist_r(ListBase *listbase, void *thunk, int (*cmp)(void *, const void *, const void *))
 {
 	Link *current = NULL;
 	Link *previous = NULL;
@@ -354,7 +392,7 @@ int BLI_countlist(const ListBase *listbase)
 }
 
 /**
- * Returns the nth element of \a listbase, numbering from 1.
+ * Returns the nth element of \a listbase, numbering from 0.
  */
 void *BLI_findlink(const ListBase *listbase, int number)
 {
@@ -372,7 +410,7 @@ void *BLI_findlink(const ListBase *listbase, int number)
 }
 
 /**
- * Returns the nth-last element of \a listbase, numbering from 1.
+ * Returns the nth-last element of \a listbase, numbering from 0.
  */
 void *BLI_rfindlink(const ListBase *listbase, int number)
 {
@@ -390,7 +428,7 @@ void *BLI_rfindlink(const ListBase *listbase, int number)
 }
 
 /**
- * Returns the position of \a vlink within \a listbase, numbering from 1, or -1 if not found.
+ * Returns the position of \a vlink within \a listbase, numbering from 0, or -1 if not found.
  */
 int BLI_findindex(const ListBase *listbase, const void *vlink)
 {

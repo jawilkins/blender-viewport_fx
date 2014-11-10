@@ -200,7 +200,7 @@ static int node_group_ungroup(bNodeTree *ntree, bNode *gnode)
 	 * - ngroup (i.e. the source NodeTree) is left unscathed
 	 * - temp copy. don't change ID usercount
 	 */
-	wgroup = ntreeCopyTree_ex(ngroup, false);
+	wgroup = ntreeCopyTree_ex(ngroup, G.main, false);
 	
 	/* Add the nodes into the ntree */
 	for (node = wgroup->nodes.first; node; node = nextnode) {
@@ -571,7 +571,7 @@ static int node_group_separate_invoke(bContext *C, wmOperator *UNUSED(op), const
 	
 	uiPupMenuEnd(C, pup);
 	
-	return OPERATOR_CANCELLED;
+	return OPERATOR_INTERFACE;
 }
 
 void NODE_OT_group_separate(wmOperatorType *ot)

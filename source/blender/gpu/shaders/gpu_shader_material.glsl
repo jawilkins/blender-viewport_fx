@@ -722,6 +722,16 @@ void invert(float fac, vec4 col, out vec4 outcol)
 	outcol.w = col.w;
 }
 
+void clamp_vec3(vec3 vec, vec3 min, vec3 max, out vec3 out_vec)
+{
+	out_vec = clamp(vec, min, max);
+}
+
+void clamp_val(float value, float min, float max, out float out_value)
+{
+	out_value = clamp(value, min, max);
+}
+
 void hue_sat(float hue, float sat, float value, float fac, vec4 col, out vec4 outcol)
 {
 	vec4 hsv;
@@ -1012,6 +1022,38 @@ void mtex_rgb_color(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 i
 	incol.rgb = col.rgb;
 }
 
+void mtex_rgb_soft(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	float facm;
+
+	fact *= facg;
+	facm = 1.0-fact;
+
+	vec3 one = vec3(1.0);
+	vec3 scr = one - (one - texcol)*(one - outcol);
+	incol = facm*outcol + fact*((one - texcol)*outcol*texcol + outcol*scr);
+}
+
+void mtex_rgb_linear(vec3 outcol, vec3 texcol, float fact, float facg, out vec3 incol)
+{
+	fact *= facg;
+
+	if(texcol.r > 0.5)
+		incol.r = outcol.r + fact*(2.0*(texcol.r - 0.5));
+	else
+		incol.r = outcol.r + fact*(2.0*(texcol.r) - 1.0);
+
+	if(texcol.g > 0.5)
+		incol.g = outcol.g + fact*(2.0*(texcol.g - 0.5));
+	else
+		incol.g = outcol.g + fact*(2.0*(texcol.g) - 1.0);
+
+	if(texcol.b > 0.5)
+		incol.b = outcol.b + fact*(2.0*(texcol.b - 0.5));
+	else
+		incol.b = outcol.b + fact*(2.0*(texcol.b) - 1.0);
+}
+
 void mtex_value_vars(inout float fact, float facg, out float facm)
 {
 	fact *= abs(facg);
@@ -1179,7 +1221,12 @@ void mtex_mapping_size(vec3 texco, vec3 size, out vec3 outtexco)
 
 void mtex_2d_mapping(vec3 vec, out vec3 outvec)
 {
-	outvec = vec3(vec.xy*0.5 + vec2(0.5, 0.5), vec.z);
+	outvec = vec3(vec.xy*0.5 + vec2(0.5), vec.z);
+}
+
+vec3 mtex_2d_mapping(vec3 vec)
+{
+	return vec3(vec.xy*0.5 + vec2(0.5), vec.z);
 }
 
 void mtex_image(vec3 texco, sampler2D ima, out float value, out vec4 color)
@@ -1470,9 +1517,9 @@ void mtex_nspace_world(mat4 viewmat, vec3 texnormal, out vec3 outnormal)
 	outnormal = normalize((viewmat*vec4(texnormal, 0.0)).xyz);
 }
 
-void mtex_nspace_object(mat4 viewmat, mat4 obmat, vec3 texnormal, out vec3 outnormal)
+void mtex_nspace_object(vec3 texnormal, out vec3 outnormal)
 {
-	outnormal = normalize((viewmat*(obmat*vec4(texnormal, 0.0))).xyz);
+	outnormal = normalize(gl_NormalMatrix * texnormal);
 }
 
 void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outnormal)
@@ -1888,6 +1935,17 @@ void shade_add_spec(float t, vec3 lampcol, vec3 speccol, out vec3 outcol)
 	outcol = t*lampcol*speccol;
 }
 
+void alpha_spec_correction(vec3 spec, float spectra, float alpha, out float outalpha)
+{
+	if (spectra > 0.0) {
+		float t = clamp(max(max(spec.r, spec.g), spec.b) * spectra, 0.0, 1.0);
+		outalpha = (1.0 - t) * alpha + t;
+	}
+	else {
+		outalpha = alpha;
+	}
+}
+
 void shade_add(vec4 col1, vec4 col2, out vec4 outcol)
 {
 	outcol = col1 + col2;
@@ -1919,6 +1977,11 @@ void shade_mul(vec4 col1, vec4 col2, out vec4 outcol)
 }
 
 void shade_mul_value(float fac, vec4 col, out vec4 outcol)
+{
+	outcol = col*fac;
+}
+
+void shade_mul_value_v3(float fac, vec3 col, out vec3 outcol)
 {
 	outcol = col*fac;
 }
@@ -2222,10 +2285,12 @@ void node_layer_weight(float blend, vec3 N, vec3 I, out float fresnel, out float
 {
 	/* fresnel */
 	float eta = max(1.0 - blend, 0.00001);
-	fresnel = fresnel_dielectric(normalize(I), N, (gl_FrontFacing)? 1.0/eta : eta );
+	vec3 I_view = (gl_ProjectionMatrix[3][3] == 0.0)? normalize(I): vec3(0.0, 0.0, -1.0);
+
+	fresnel = fresnel_dielectric(I_view, N, (gl_FrontFacing)? 1.0/eta : eta );
 
 	/* facing */
-	facing = abs(dot(normalize(I), N));
+	facing = abs(dot(I_view, N));
 	if(blend != 0.5) {
 		blend = clamp(blend, 0.0, 0.99999);
 		blend = (blend < 0.5)? 2.0*blend: 0.5/(1.0 - blend);
@@ -2285,14 +2350,18 @@ void node_tex_coord(vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat,
 	out vec3 generated, out vec3 normal, out vec3 uv, out vec3 object,
 	out vec3 camera, out vec3 window, out vec3 reflection)
 {
-	generated = attr_orco;
+	generated = mtex_2d_mapping(attr_orco);
 	normal = normalize((obinvmat*(viewinvmat*vec4(N, 0.0))).xyz);
 	uv = attr_uv;
 	object = (obinvmat*(viewinvmat*vec4(I, 1.0))).xyz;
 	camera = I;
-	window = gl_FragCoord.xyz;
-	reflection = reflect(N, I);
+	vec4 projvec = gl_ProjectionMatrix * vec4(I, 1.0);
+	window = mtex_2d_mapping(projvec.xyz/projvec.w);
 
+	vec3 shade_I;
+	shade_view(I, shade_I);
+	vec3 view_reflection = reflect(shade_I, normalize(N));
+	reflection = (viewinvmat*vec4(view_reflection, 0.0)).xyz;
 }
 
 /* textures */

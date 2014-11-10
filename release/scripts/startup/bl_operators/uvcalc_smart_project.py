@@ -634,7 +634,7 @@ def packIslands(islandList):
     # print 'Box Packing Time:', time.time() - time1
 
     #if len(pa	ckedLs) != len(islandList):
-    #	raise "Error packed boxes differs from original length"
+    #    raise ValueError("Packed boxes differs from original length")
 
     #print '\tWriting Packed Data to faces'
 #XXX	Window.DrawProgressBar(0.8, "Writing Packed Data to faces")
@@ -670,7 +670,7 @@ def VectoQuat(vec):
     return vec.to_track_quat('Z', 'X' if abs(vec.x) > 0.5 else 'Y').inverted()
 
 
-class thickface(object):
+class thickface:
     __slost__= "v", "uv", "no", "area", "edge_keys"
     def __init__(self, face, uv_layer, mesh_verts):
         self.v = [mesh_verts[i] for i in face.vertices]

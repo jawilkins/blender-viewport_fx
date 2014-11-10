@@ -164,6 +164,7 @@ CCL_NAMESPACE_END
 #include "svm_mapping.h"
 #include "svm_normal.h"
 #include "svm_wave.h"
+#include "svm_math_util.h"
 #include "svm_math.h"
 #include "svm_mix.h"
 #include "svm_ramp.h"
@@ -236,7 +237,7 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 				if(stack_load_float(stack, node.z) == 1.0f)
 					offset += node.y;
 				break;
-#ifdef __IMAGE_TEXTURES__
+#ifdef __TEXTURES__
 			case NODE_TEX_IMAGE:
 				svm_node_tex_image(kg, sd, stack, node);
 				break;
@@ -246,8 +247,6 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 			case NODE_TEX_ENVIRONMENT:
 				svm_node_tex_environment(kg, sd, stack, node);
 				break;
-#endif
-#ifdef __PROCEDURAL_TEXTURES__
 			case NODE_TEX_SKY:
 				svm_node_tex_sky(kg, sd, stack, node, &offset);
 				break;
@@ -420,17 +419,13 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 			case NODE_LIGHT_FALLOFF:
 				svm_node_light_falloff(sd, stack, node);
 				break;
-#endif			
-#ifdef __ANISOTROPIC__
+#endif
 			case NODE_TANGENT:
 				svm_node_tangent(kg, sd, stack, node);
 				break;
-#endif			
-#ifdef __NORMAL_MAP__
 			case NODE_NORMAL_MAP:
 				svm_node_normal_map(kg, sd, stack, node);
-				break;
-#endif			
+				break;	
 			case NODE_END:
 			default:
 				return;

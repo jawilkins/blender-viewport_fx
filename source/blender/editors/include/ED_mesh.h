@@ -101,8 +101,8 @@ struct DerivedMesh *EDBM_mesh_deform_dm_get(struct BMEditMesh *em);
  * verts select/deselect edges and faces, if in edge select mode,
  * edges select/deselect faces and vertices, and in face select mode faces select/deselect
  * edges and vertices.*/
-void EDBM_select_more(struct BMEditMesh *em);
-void EDBM_select_less(struct BMEditMesh *em);
+void EDBM_select_more(struct BMEditMesh *em, const bool use_face_step);
+void EDBM_select_less(struct BMEditMesh *em, const bool use_face_step);
 
 void EDBM_selectmode_flush_ex(struct BMEditMesh *em, const short selectmode);
 void EDBM_selectmode_flush(struct BMEditMesh *em);
@@ -119,7 +119,7 @@ void EDBM_mesh_reveal(struct BMEditMesh *em);
 
 void EDBM_update_generic(struct BMEditMesh *em, const bool do_tessface, const bool is_destructive);
 
-struct UvElementMap *BM_uv_element_map_create(struct BMesh *em, const bool selected, const bool do_islands);
+struct UvElementMap *BM_uv_element_map_create(struct BMesh *bm, const bool selected, const bool do_islands);
 void                 BM_uv_element_map_free(struct UvElementMap *vmap);
 struct UvElement    *BM_uv_element_get(struct UvElementMap *map, struct BMFace *efa, struct BMLoop *l);
 
@@ -264,10 +264,10 @@ void ED_mesh_faces_remove(struct Mesh *mesh, struct ReportList *reports, int cou
 void ED_mesh_edges_remove(struct Mesh *mesh, struct ReportList *reports, int count);
 void ED_mesh_vertices_remove(struct Mesh *mesh, struct ReportList *reports, int count);
 
-void ED_mesh_transform(struct Mesh *me, float mat[4][4]);
 void ED_mesh_calc_tessface(struct Mesh *mesh);
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, int calc_edges, int calc_tessface);
 
+void ED_mesh_uv_texture_ensure(struct Mesh *me, const char *name);
 int  ED_mesh_uv_texture_add(struct Mesh *me, const char *name, const bool active_set);
 bool ED_mesh_uv_texture_remove_index(struct Mesh *me, const int n);
 bool ED_mesh_uv_texture_remove_active(struct Mesh *me);

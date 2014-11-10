@@ -104,7 +104,6 @@ GLenum glew_chk(GLenum error, const char *file, int line, const char *text);
 #  define GLEW_CHK(x) glew_chk((x), NULL, 0, NULL)
 #endif
 
-
 #ifdef __cplusplus
 }
 #endif

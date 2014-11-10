@@ -401,8 +401,12 @@ static int wm_handler_ui_call(bContext *C, wmEventHandler *handler, wmEvent *eve
 	
 	/* UI code doesn't handle return values - it just always returns break. 
 	 * to make the DBL_CLICK conversion work, we just don't send this to UI, except mouse clicks */
-	if (event->type != LEFTMOUSE && event->val == KM_DBL_CLICK)
+	if (((handler->flag & WM_HANDLER_ACCEPT_DBL_CLICK) == 0) &&
+	    (event->type != LEFTMOUSE) &&
+	    (event->val == KM_DBL_CLICK))
+	{
 		return WM_HANDLER_CONTINUE;
+	}
 	
 	/* UI is quite aggressive with swallowing events, like scrollwheel */
 	/* I realize this is not extremely nice code... when UI gets keymaps it can be maybe smarter */
@@ -1553,7 +1557,7 @@ static int wm_handler_operator_call(bContext *C, ListBase *handlers, wmEventHand
 		wmOperatorType *ot = op->type;
 
 		if (!wm_operator_check_locked_interface(C, ot)) {
-			/* Interface is locked and pperator is not allowed to run,
+			/* Interface is locked and operator is not allowed to run,
 			 * nothing to do in this case.
 			 */
 		}
@@ -2184,6 +2188,23 @@ static void wm_event_drag_test(wmWindowManager *wm, wmWindow *win, wmEvent *even
 	
 }
 
+/* filter out all events of the pie that spawned the last pie unless it's a release event */
+static bool wm_event_pie_filter(wmWindow *win, wmEvent *event)
+{
+	if (win->lock_pie_event && win->lock_pie_event == event->type) {
+		if (event->val == KM_RELEASE) {
+			win->lock_pie_event = EVENT_NONE;
+			return false;
+		}
+		else {
+			return true;
+		}
+	}
+	else {
+		return false;
+	}
+}
+
 /* called in main loop */
 /* goes over entire hierarchy:  events -> window -> screen -> area -> region */
 void wm_event_do_handlers(bContext *C)
@@ -2247,9 +2268,21 @@ void wm_event_do_handlers(bContext *C)
 				WM_event_print(event);
 			}
 #endif
-			
+
+			/* take care of pie event filter */
+			if (wm_event_pie_filter(win, event)) {
+#ifndef NDEBUG
+				if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS) && !ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
+					printf("\n%s: event filtered due to pie button pressed\n", __func__);
+				}
+#endif
+				BLI_remlink(&win->queue, event);
+				wm_event_free(event);
+				continue;
+			}
+
 			CTX_wm_window_set(C, win);
-			
+
 			/* we let modal handlers get active area/region, also wm_paintcursor_test needs it */
 			CTX_wm_area_set(C, area_event_inside(C, &event->x));
 			CTX_wm_region_set(C, region_event_inside(C, &event->x));
@@ -2258,6 +2291,7 @@ void wm_event_do_handlers(bContext *C)
 			wm_window_make_drawable(wm, win);
 			
 			wm_region_mouse_co(C, event);
+
 
 			/* first we do priority handlers, modal + some limited keymaps */
 			action |= wm_handlers_do(C, event, &win->modalhandlers);
@@ -2563,7 +2597,7 @@ void WM_event_remove_keymap_handler(ListBase *handlers, wmKeyMap *keymap)
 wmEventHandler *WM_event_add_ui_handler(
         const bContext *C, ListBase *handlers,
         wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
-        void *userdata)
+        void *userdata, const bool accept_dbl_click)
 {
 	wmEventHandler *handler = MEM_callocN(sizeof(wmEventHandler), "event ui handler");
 	handler->ui_handle = ui_handle;
@@ -2580,6 +2614,9 @@ wmEventHandler *WM_event_add_ui_handler(
 		handler->ui_menu    = NULL;
 	}
 
+	if (accept_dbl_click) {
+		handler->flag |= WM_HANDLER_ACCEPT_DBL_CLICK;
+	}
 	
 	BLI_addhead(handlers, handler);
 	

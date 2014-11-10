@@ -41,6 +41,9 @@
 #endif
 
 #ifdef WIN32
+#  if defined(_MSC_VER) && _MSC_VER >= 1800 && defined(_M_X64)
+#    include <math.h> /* needed for _set_FMA3_enable */
+#  endif
 #  include <windows.h>
 #  include "utfconv.h"
 #endif
@@ -104,6 +107,7 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+#include "RE_render_ext.h"
 
 #include "ED_datafiles.h"
 #include "ED_util.h"
@@ -144,6 +148,10 @@
 
 #ifdef WITH_LIBMV
 #  include "libmv-capi.h"
+#endif
+
+#ifdef WITH_CYCLES_LOGGING
+#  include "CCL_api.h"
 #endif
 
 /* from buildinfo.c */
@@ -194,7 +202,7 @@ static bool use_crash_handler = true;
 #if defined(__linux__) || defined(_WIN32) || defined(OSX_SSE_FPE)
 static void fpe_handler(int UNUSED(sig))
 {
-	// printf("SIGFPE trapped\n");
+	fprintf(stderr, "debug: SIGFPE trapped\n");
 }
 #endif
 
@@ -305,6 +313,9 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	BLI_argsPrintArgDoc(ba, "--debug-handlers");
 #ifdef WITH_LIBMV
 	BLI_argsPrintArgDoc(ba, "--debug-libmv");
+#endif
+#ifdef WITH_CYCLES_LOGGING
+	BLI_argsPrintArgDoc(ba, "--debug-cycles");
 #endif
 	BLI_argsPrintArgDoc(ba, "--debug-memory");
 	BLI_argsPrintArgDoc(ba, "--debug-jobs");
@@ -443,6 +454,15 @@ static int debug_mode_libmv(int UNUSED(argc), const char **UNUSED(argv), void *U
 {
 	libmv_startDebugLogging();
 
+	return 0;
+}
+#endif
+
+#ifdef WITH_CYCLES_LOGGING
+static int debug_mode_cycles(int UNUSED(argc), const char **UNUSED(argv),
+                             void *UNUSED(data))
+{
+	CCL_start_debug_logging();
 	return 0;
 }
 #endif
@@ -814,6 +834,9 @@ static int set_engine(int argc, const char **argv, void *data)
 				if (BLI_findstring(&R_engines, argv[1], offsetof(RenderEngineType, idname))) {
 					BLI_strncpy_utf8(rd->engine, argv[1], sizeof(rd->engine));
 				}
+				else {
+					printf("\nError: engine not found '%s'\n", argv[1]);
+				}
 			}
 			else {
 				printf("\nError: no blend loaded. order the arguments so '-E  / --engine ' is after a blend is loaded.\n");
@@ -881,6 +904,8 @@ static int set_verbosity(int argc, const char **argv, void *UNUSED(data))
 
 #ifdef WITH_LIBMV
 		libmv_setLoggingVerbosity(level);
+#elif defined(WITH_CYCLES_LOGGING)
+		CCL_logging_verbosity_set(level);
 #else
 		(void)level;
 #endif
@@ -1413,6 +1438,9 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 #ifdef WITH_LIBMV
 	BLI_argsAdd(ba, 1, NULL, "--debug-libmv", "\n\tEnable debug messages from libmv library", debug_mode_libmv, NULL);
 #endif
+#ifdef WITH_CYCLES_LOGGING
+	BLI_argsAdd(ba, 1, NULL, "--debug-cycles", "\n\tEnable debug messages from Cycles", debug_mode_cycles, NULL);
+#endif
 	BLI_argsAdd(ba, 1, NULL, "--debug-memory", "\n\tEnable fully guarded memory allocation and debugging", debug_mode_memory, NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--debug-value", "<value>\n\tSet debug value of <value> on startup\n", set_debug_value, NULL);
@@ -1501,7 +1529,13 @@ int main(
 	bArgs *ba;
 #endif
 
-#ifdef WIN32 /* Win32 Unicode Args */
+#ifdef WIN32
+	/* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM (fixed in SP1). Just disable it. */
+#  if defined(_MSC_VER) && _MSC_VER >= 1800 && defined(_M_X64)
+	_set_FMA3_enable(0);
+#  endif
+
+	/* Win32 Unicode Args */
 	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialized
 	 *       (it depends on the args passed in, which is what we're getting here!)
 	 */
@@ -1571,6 +1605,8 @@ int main(
 
 #ifdef WITH_LIBMV
 	libmv_initLogging(argv[0]);
+#elif defined(WITH_CYCLES_LOGGING)
+	CCL_init_logging(argv[0]);
 #endif
 
 	setCallbacks();
@@ -1592,6 +1628,8 @@ int main(
 	DAG_init();
 
 	BKE_brush_system_init();
+	RE_init_texture_rng();
+	
 
 	BLI_callback_global_init();
 

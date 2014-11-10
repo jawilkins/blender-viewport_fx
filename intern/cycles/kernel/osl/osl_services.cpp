@@ -479,7 +479,7 @@ static bool set_attribute_int(int i, TypeDesc type, bool derivatives, void *val)
 
 static bool set_attribute_string(ustring str, TypeDesc type, bool derivatives, void *val)
 {
-	if(type.basetype == TypeDesc::INT && type.aggregate == TypeDesc::SCALAR && type.arraylen == 0) {
+	if(type.basetype == TypeDesc::STRING && type.aggregate == TypeDesc::SCALAR && type.arraylen == 0) {
 		ustring *sval = (ustring *)val;
 		sval[0] = str;
 
@@ -758,6 +758,12 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg, bool derivatives, 
 		return false;
 
 	ShaderData *sd = (ShaderData *)(sg->renderstate);
+	return get_attribute(sd, derivatives, object_name, type, name, val);
+}
+
+bool OSLRenderServices::get_attribute(ShaderData *sd, bool derivatives, ustring object_name,
+                                      TypeDesc type, ustring name, void *val)
+{
 	KernelGlobals *kg = sd->osl_globals;
 	bool is_curve;
 	int object;
@@ -828,7 +834,7 @@ bool OSLRenderServices::has_userdata(ustring name, TypeDesc type, OSL::ShaderGlo
 bool OSLRenderServices::texture(ustring filename, TextureOpt &options,
                                 OSL::ShaderGlobals *sg,
                                 float s, float t, float dsdx, float dtdx,
-                                float dsdy, float dtdy, float *result)
+                                float dsdy, float dtdy, int nchannels, float *result)
 {
 	OSL::TextureSystem *ts = osl_ts;
 	ShaderData *sd = (ShaderData *)(sg->renderstate);
@@ -863,9 +869,9 @@ bool OSLRenderServices::texture(ustring filename, TextureOpt &options,
 		PtexFilter::Options opts(PtexFilter::f_bicubic, mipmaplerp, sharpness);
 		PtexPtr<PtexFilter> f(PtexFilter::getFilter(r, opts));
 
-		f->eval(result, options.firstchannel, options.nchannels, faceid, u, v, dudx, dvdx, dudy, dvdy);
+		f->eval(result, options.firstchannel, nchannels, faceid, u, v, dudx, dvdx, dudy, dvdy);
 
-		for(int c = r->numChannels(); c < options.nchannels; c++)
+		for(int c = r->numChannels(); c < nchannels; c++)
 			result[c] = result[0];
 
 		return true;
@@ -874,15 +880,15 @@ bool OSLRenderServices::texture(ustring filename, TextureOpt &options,
 	bool status;
 
 	if(filename[0] == '@' && filename.find('.') == -1) {
-        int slot = atoi(filename.c_str() + 1);
+		int slot = atoi(filename.c_str() + 1);
 		float4 rgba = kernel_tex_image_interp(slot, s, 1.0f - t);
 
 		result[0] = rgba[0];
-		if(options.nchannels > 1)
+		if(nchannels > 1)
 			result[1] = rgba[1];
-		if(options.nchannels > 2)
+		if(nchannels > 2)
 			result[2] = rgba[2];
-		if(options.nchannels > 3)
+		if(nchannels > 3)
 			result[3] = rgba[3];
 		status = true;
 	}
@@ -892,17 +898,24 @@ bool OSLRenderServices::texture(ustring filename, TextureOpt &options,
 
 		OIIO::TextureSystem::TextureHandle *th = ts->get_texture_handle(filename, thread_info);
 
+#if OIIO_VERSION < 10500
 		status = ts->texture(th, thread_info,
-		                     options, s, t, dsdx, dtdx, dsdy, dtdy, result);
+		                     options, s, t, dsdx, dtdx, dsdy, dtdy,
+		                     result);
+#else
+		status = ts->texture(th, thread_info,
+		                     options, s, t, dsdx, dtdx, dsdy, dtdy,
+		                     nchannels, result);
+#endif
 	}
 
 	if(!status) {
-		if(options.nchannels == 3 || options.nchannels == 4) {
+		if(nchannels == 3 || nchannels == 4) {
 			result[0] = 1.0f;
 			result[1] = 0.0f;
 			result[2] = 1.0f;
 
-			if(options.nchannels == 4)
+			if(nchannels == 4)
 				result[3] = 1.0f;
 		}
 	}
@@ -913,7 +926,7 @@ bool OSLRenderServices::texture(ustring filename, TextureOpt &options,
 bool OSLRenderServices::texture3d(ustring filename, TextureOpt &options,
                                   OSL::ShaderGlobals *sg, const OSL::Vec3 &P,
                                   const OSL::Vec3 &dPdx, const OSL::Vec3 &dPdy,
-                                  const OSL::Vec3 &dPdz, float *result)
+                                  const OSL::Vec3 &dPdz, int nchannels, float *result)
 {
 	OSL::TextureSystem *ts = osl_ts;
 	ShaderData *sd = (ShaderData *)(sg->renderstate);
@@ -923,16 +936,22 @@ bool OSLRenderServices::texture3d(ustring filename, TextureOpt &options,
 
 	OIIO::TextureSystem::TextureHandle *th =  ts->get_texture_handle(filename, thread_info);
 
+#if OIIO_VERSION < 10500
 	bool status = ts->texture3d(th, thread_info,
 	                            options, P, dPdx, dPdy, dPdz, result);
+#else
+	bool status = ts->texture3d(th, thread_info,
+	                            options, P, dPdx, dPdy, dPdz,
+	                            nchannels, result);
+#endif
 
 	if(!status) {
-		if(options.nchannels == 3 || options.nchannels == 4) {
+		if(nchannels == 3 || nchannels == 4) {
 			result[0] = 1.0f;
 			result[1] = 0.0f;
 			result[2] = 1.0f;
 
-			if(options.nchannels == 4)
+			if(nchannels == 4)
 				result[3] = 1.0f;
 		}
 
@@ -943,7 +962,8 @@ bool OSLRenderServices::texture3d(ustring filename, TextureOpt &options,
 
 bool OSLRenderServices::environment(ustring filename, TextureOpt &options,
                                     OSL::ShaderGlobals *sg, const OSL::Vec3 &R,
-                                    const OSL::Vec3 &dRdx, const OSL::Vec3 &dRdy, float *result)
+                                    const OSL::Vec3 &dRdx, const OSL::Vec3 &dRdy,
+                                    int nchannels, float *result)
 {
 	OSL::TextureSystem *ts = osl_ts;
 	ShaderData *sd = (ShaderData *)(sg->renderstate);
@@ -952,16 +972,23 @@ bool OSLRenderServices::environment(ustring filename, TextureOpt &options,
 	OIIO::TextureSystem::Perthread *thread_info = tdata->oiio_thread_info;
 
 	OIIO::TextureSystem::TextureHandle *th =  ts->get_texture_handle(filename, thread_info);
+
+#if OIIO_VERSION < 10500
 	bool status = ts->environment(th, thread_info,
 	                              options, R, dRdx, dRdy, result);
+#else
+	bool status = ts->environment(th, thread_info,
+	                              options, R, dRdx, dRdy,
+	                              nchannels, result);
+#endif
 
 	if(!status) {
-		if(options.nchannels == 3 || options.nchannels == 4) {
+		if(nchannels == 3 || nchannels == 4) {
 			result[0] = 1.0f;
 			result[1] = 0.0f;
 			result[2] = 1.0f;
 
-			if(options.nchannels == 4)
+			if(nchannels == 4)
 				result[3] = 1.0f;
 		}
 	}
@@ -1012,7 +1039,7 @@ bool OSLRenderServices::trace(TraceOpt &options, OSL::ShaderGlobals *sg,
 
 	ray.P = TO_FLOAT3(P);
 	ray.D = TO_FLOAT3(R);
-	ray.t = (options.maxdist == 1.0e30)? FLT_MAX: options.maxdist - options.mindist;
+	ray.t = (options.maxdist == 1.0e30f)? FLT_MAX: options.maxdist - options.mindist;
 	ray.time = sd->time;
 
 	if(options.mindist == 0.0f) {
@@ -1041,11 +1068,7 @@ bool OSLRenderServices::trace(TraceOpt &options, OSL::ShaderGlobals *sg,
 	tracedata->sd.osl_globals = sd->osl_globals;
 
 	/* raytrace */
-#ifdef __HAIR__
 	return scene_intersect(sd->osl_globals, &ray, PATH_RAY_ALL_VISIBILITY, &tracedata->isect, NULL, 0.0f, 0.0f);
-#else
-	return scene_intersect(sd->osl_globals, &ray, PATH_RAY_ALL_VISIBILITY, &tracedata->isect);
-#endif
 }
 
 
@@ -1100,7 +1123,7 @@ bool OSLRenderServices::getmessage(OSL::ShaderGlobals *sg, ustring source, ustri
 					return set_attribute_float(f, type, derivatives, val);
 				}
 
-				return get_attribute(sg, derivatives, u_empty, type, name, val);
+				return get_attribute(sd, derivatives, u_empty, type, name, val);
 			}
 		}
 	}

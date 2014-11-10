@@ -413,6 +413,12 @@ macro(setup_liblinks
 	endif()
 
 	target_link_libraries(${target} ${PLATFORM_LINKLIBS} ${CMAKE_DL_LIBS})
+
+	# We put CLEW and CUEW here because OPENSUBDIV_LIBRARIES dpeends on them..
+	if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
+		target_link_libraries(${target} "extern_clew")
+		target_link_libraries(${target} "extern_cuew")
+	endif()
 endmacro()
 
 macro(SETUP_BLENDER_SORTED_LIBS)
@@ -716,6 +722,8 @@ macro(TEST_SSE_SUPPORT
 endmacro()
 
 macro(TEST_STDBOOL_SUPPORT)
+	include(CheckCSourceRuns)
+
 	# This program will compile correctly if and only if
 	# this C compiler supports C99 stdbool.
 	check_c_source_runs("

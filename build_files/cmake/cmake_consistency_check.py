@@ -174,7 +174,7 @@ def cmake_get_src(f):
                             elif is_c(new_file):
                                 sources_c.append(new_file)
                                 global_refs.setdefault(new_file, []).append((f, i))
-                            elif l in ("PARENT_SCOPE", ):
+                            elif l in {"PARENT_SCOPE", }:
                                 # cmake var, ignore
                                 pass
                             elif new_file.endswith(".list"):
@@ -201,7 +201,7 @@ def cmake_get_src(f):
                                     # replace_line(f, i - 1, new_path_rel)
 
                             else:
-                                raise Exception("non existant include %s:%d -> %s" % (f, i, new_file))
+                                raise Exception("non existent include %s:%d -> %s" % (f, i, new_file))
 
                         # print(new_file)
 

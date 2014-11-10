@@ -280,7 +280,7 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
 		closedir(dir);
 	}
 	else {
-		printf("%s non-existant directory\n", dirname);
+		printf("%s non-existent directory\n", dirname);
 	}
 }
 
@@ -515,7 +515,7 @@ int BLI_stat(const char *path, BLI_stat_t *buffer)
 
 int BLI_wstat(const wchar_t *path, BLI_stat_t *buffer)
 {
-#if (defined(_MSC_VER) && (_MSC_VER >= 1500)) || defined(__MINGW64__)
+#if defined(_MSC_VER) || defined(__MINGW64__)
 	return _wstat64(path, buffer);
 #elif defined(__MINGW32__)
 	return _wstati64(path, buffer);

@@ -30,13 +30,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#if defined(_WIN32) && defined(DEBUG) && !defined(__MINGW32__) && !defined(__CYGWIN__)
-/* This does not seem necessary or present on MSVC 8, but may be needed in earlier versions? */
-#  if _MSC_VER < 1400
-#    include <stdint.h>
-#  endif
-#endif
-
 #include <stdlib.h>
 
 #include <libavformat/avformat.h>
@@ -491,7 +484,6 @@ static void set_ffmpeg_properties(RenderData *rd, AVCodecContext *c, const char 
                                   AVDictionary **dictionary)
 {
 	IDProperty *prop;
-	void *iter;
 	IDProperty *curr;
 
 	/* TODO(sergey): This is actually rather stupid, because changing
@@ -516,9 +508,7 @@ static void set_ffmpeg_properties(RenderData *rd, AVCodecContext *c, const char 
 		return;
 	}
 
-	iter = IDP_GetGroupIterator(prop);
-
-	while ((curr = IDP_GroupIterNext(iter)) != NULL) {
+	for (curr = prop->data.group.first; curr; curr = curr->next) {
 		if (ffmpeg_proprty_valid(c, prop_name, curr))
 			set_ffmpeg_property_option(c, curr, dictionary);
 	}
@@ -703,12 +693,12 @@ static AVStream *alloc_audio_stream(RenderData *rd, int codec_id, AVFormatContex
 	}
 
 	if (codec->sample_fmts) {
-		/* check if the prefered sample format for this codec is supported.
+		/* check if the preferred sample format for this codec is supported.
 		 * this is because, depending on the version of libav, and with the whole ffmpeg/libav fork situation,
 		 * you have various implementations around. float samples in particular are not always supported.
 		 */
 		const enum AVSampleFormat *p = codec->sample_fmts;
-		for (; *p!=-1; p++) {
+		for (; *p != -1; p++) {
 			if (*p == st->codec->sample_fmt)
 				break;
 		}

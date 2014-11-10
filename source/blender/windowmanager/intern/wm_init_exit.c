@@ -54,6 +54,8 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "BLO_writefile.h"
+
 #include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
@@ -188,6 +190,8 @@ void WM_init(bContext *C, int argc, const char **argv)
 	(void)argv; /* unused */
 #endif
 
+	ED_spacemacros_init();
+
 	if (!G.background && !wm_start_with_console)
 		GHOST_toggleConsole(3);
 
@@ -238,6 +242,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 		 *
 		 * unlikely any handlers are set but its possible,
 		 * note that recovering the last session does its own callbacks. */
+		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_VERSION_UPDATE);
 		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
 	}
 }
@@ -303,7 +308,7 @@ bool WM_init_game(bContext *C)
 
 		/* full screen the area */
 		if (!sa->full) {
-			ED_screen_full_toggle(C, win, sa);
+			ED_screen_state_toggle(C, win, sa, SCREENMAXIMIZED);
 		}
 
 		/* Fullscreen */
@@ -406,11 +411,18 @@ void WM_exit_ext(bContext *C, const bool do_python)
 			if ((U.uiflag2 & USER_KEEP_SESSION) || BKE_undo_valid(NULL)) {
 				/* save the undo state as quit.blend */
 				char filename[FILE_MAX];
-				
+				bool has_edited;
+				int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_LOCK | G_FILE_SIGN | G_FILE_HISTORY);
+
 				BLI_make_file_string("/", filename, BLI_temp_dir_base(), BLENDER_QUIT_FILE);
 
-				if (BKE_undo_save_file(filename))
+				has_edited = ED_editors_flush_edits(C, false);
+
+				if ((has_edited && BLO_write_file(CTX_data_main(C), filename, fileflags, NULL, NULL)) ||
+				    BKE_undo_save_file(filename))
+				{
 					printf("Saved session recovery to '%s'\n", filename);
+				}
 			}
 		}
 		
