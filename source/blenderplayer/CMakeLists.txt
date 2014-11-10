@@ -156,7 +156,6 @@ endif()
 		extern_wcwidth
 		extern_libmv
 		extern_glog
-		bf_intern_glew_mx
 	)
 
 	if(WITH_MOD_CLOTH_ELTOPO)

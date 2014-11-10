@@ -47,7 +47,6 @@
 
 class GHOST_SystemCocoa;
 
- * XXX jwilkins: This comment seems out of date since we neither use Carbon nor AGL
 class GHOST_WindowCocoa : public GHOST_Window {
 public:
 	/**

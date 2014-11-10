@@ -286,6 +286,4 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
-add_definitions(${GL_DEFINITIONS})
-
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")
