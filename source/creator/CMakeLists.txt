@@ -677,18 +677,6 @@ elseif(WIN32)
 	# EGL Runtime Components
 	if(WITH_GL_EGL)
 		if(WIN32)
-			install(FILES "${OPENGLES_DLL}"     DESTINATION ${TARGETDIR})
-			install(FILES "${OPENGLES_EGL_DLL}" DESTINATION ${TARGETDIR})
-
-			if(WITH_GL_ANGLE)
-				install(FILES "${D3DCOMPILER_DLL}" DESTINATION ${TARGETDIR})
-			endif()
-		endif()
-	endif()
-
-	# EGL Runtime Components
-	if(WITH_GL_EGL)
-		if(WIN32)
 			install(FILES "${OPENGLES_DLL}"     DESTINATION ".")
 			install(FILES "${OPENGLES_EGL_DLL}" DESTINATION ".")
 
