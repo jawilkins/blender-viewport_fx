@@ -116,8 +116,8 @@ void BlenderSession::create_session()
 	if(b_v3d) {
 		if(session_pause == false) {
 			/* full data sync */
-			sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state);
 			sync->sync_view(b_v3d, b_rv3d, width, height);
+			sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state);
 		}
 	}
 	else {
@@ -261,6 +261,14 @@ static PassType get_pass_type(BL::RenderPass b_pass)
 		case BL::RenderPass::type_SPECULAR:
 		case BL::RenderPass::type_REFLECTION:
 			return PASS_NONE;
+#ifdef WITH_CYCLES_DEBUG
+		case BL::RenderPass::type_DEBUG:
+		{
+			if(b_pass.debug_type() == BL::RenderPass::debug_type_BVH_TRAVERSAL_STEPS)
+				return PASS_BVH_TRAVERSAL_STEPS;
+			break;
+		}
+#endif
 	}
 	
 	return PASS_NONE;
@@ -423,6 +431,9 @@ void BlenderSession::render()
 		/* add passes */
 		vector<Pass> passes;
 		Pass::add(PASS_COMBINED, passes);
+#ifdef WITH_CYCLES_DEBUG
+		Pass::add(PASS_BVH_TRAVERSAL_STEPS, passes);
+#endif
 
 		if(session_params.device.advanced_shading) {
 
@@ -529,6 +540,7 @@ void BlenderSession::bake(BL::Object b_object, const string& pass_type, BL::Bake
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
 	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, b_v3d, b_rv3d, scene->camera, width, height);
 
+	scene->bake_manager->set_shader_limit((size_t)b_engine.tile_x(), (size_t)b_engine.tile_y());
 	scene->bake_manager->set_baking(true);
 
 	/* set number of samples */

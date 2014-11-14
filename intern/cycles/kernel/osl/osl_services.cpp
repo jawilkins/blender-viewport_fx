@@ -479,7 +479,7 @@ static bool set_attribute_int(int i, TypeDesc type, bool derivatives, void *val)
 
 static bool set_attribute_string(ustring str, TypeDesc type, bool derivatives, void *val)
 {
-	if(type.basetype == TypeDesc::INT && type.aggregate == TypeDesc::SCALAR && type.arraylen == 0) {
+	if(type.basetype == TypeDesc::STRING && type.aggregate == TypeDesc::SCALAR && type.arraylen == 0) {
 		ustring *sval = (ustring *)val;
 		sval[0] = str;
 
@@ -758,6 +758,12 @@ bool OSLRenderServices::get_attribute(OSL::ShaderGlobals *sg, bool derivatives, 
 		return false;
 
 	ShaderData *sd = (ShaderData *)(sg->renderstate);
+	return get_attribute(sd, derivatives, object_name, type, name, val);
+}
+
+bool OSLRenderServices::get_attribute(ShaderData *sd, bool derivatives, ustring object_name,
+                                      TypeDesc type, ustring name, void *val)
+{
 	KernelGlobals *kg = sd->osl_globals;
 	bool is_curve;
 	int object;
@@ -1041,11 +1047,7 @@ bool OSLRenderServices::trace(TraceOpt &options, OSL::ShaderGlobals *sg,
 	tracedata->sd.osl_globals = sd->osl_globals;
 
 	/* raytrace */
-#ifdef __HAIR__
 	return scene_intersect(sd->osl_globals, &ray, PATH_RAY_ALL_VISIBILITY, &tracedata->isect, NULL, 0.0f, 0.0f);
-#else
-	return scene_intersect(sd->osl_globals, &ray, PATH_RAY_ALL_VISIBILITY, &tracedata->isect);
-#endif
 }
 
 
@@ -1100,7 +1102,7 @@ bool OSLRenderServices::getmessage(OSL::ShaderGlobals *sg, ustring source, ustri
 					return set_attribute_float(f, type, derivatives, val);
 				}
 
-				return get_attribute(sg, derivatives, u_empty, type, name, val);
+				return get_attribute(sd, derivatives, u_empty, type, name, val);
 			}
 		}
 	}
