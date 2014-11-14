@@ -25,10 +25,12 @@
 ARGS=$( \
 getopt \
 -o s:i:t:h \
---long source:,install:,tmp:,threads:,help,no-sudo,with-all,with-opencollada,ver-ocio:,ver-oiio:,ver-llvm:,ver-osl:,\
+--long source:,install:,tmp:,info:,threads:,help,no-sudo,with-all,with-opencollada,\
+ver-ocio:,ver-oiio:,ver-llvm:,ver-osl:,\
 force-all,force-python,force-numpy,force-boost,force-ocio,force-oiio,force-llvm,force-osl,force-opencollada,\
-force-ffmpeg,skip-python,skip-numpy,skip-boost,skip-ocio,skip-oiio,skip-llvm,skip-osl,skip-ffmpeg,\
-skip-opencollada,required-numpy: \
+force-ffmpeg,\
+skip-python,skip-numpy,skip-boost,skip-ocio,skip-openexr,skip-oiio,skip-llvm,skip-osl,skip-ffmpeg,skip-opencollada,\
+required-numpy: \
 -- "$@" \
 )
 
@@ -38,6 +40,7 @@ SRC="$HOME/src/blender-deps"
 INST="/opt/lib"
 TMP="/tmp"
 CWD=$PWD
+INFO_PATH=$CWD
 
 # Do not install some optional, potentially conflicting libs by default...
 WITH_ALL=false
@@ -73,6 +76,9 @@ ARGUMENTS_INFO="\"COMMAND LINE ARGUMENTS:
 
     --tmp=<path>
         Use a specific temp path (defaults to '\$TMP').
+
+    --info=<path>
+        Use a specific info path (to store BUILD_NOTES.txt, defaults to '\$INFO_PATH').
 
     -t n, --threads=n
         Use a specific number of threads when building the libraries (auto-detected as '\$THREADS').
@@ -319,6 +325,9 @@ while true; do
     ;;
     --tmp)
       TMP="$2"; shift; shift; continue
+    ;;
+    --info)
+      INFO_PATH="$2"; shift; shift; continue
     ;;
     -t|--threads)
       THREADS="$2"; shift; shift; continue
@@ -1694,7 +1703,7 @@ check_package_DEB() {
 }
 
 check_package_installed_DEB() {
-  r=`dpkg -s $1 | grep -c '$1'`
+  r=`dpkg-query -W -f='${Status}' $1 | grep -c "install ok"`
 
   if [ $r -ge 1 ]; then
     return 0
@@ -1854,7 +1863,7 @@ install_DEB() {
     # Only install jack if jack2 is not already installed!
     JACK="libjack-dev"
     JACK2="libjack-jackd2-dev"
-    check_package_installed_DEB JACK2
+    check_package_installed_DEB $JACK2
     if [ $? -eq 0 ]; then
       _packages="$_packages $JACK2"
     else
@@ -3098,9 +3107,9 @@ else
   exit 1
 fi
 
-print_info | tee BUILD_NOTES.txt
+print_info | tee $INFO_PATH/BUILD_NOTES.txt
 PRINT ""
-PRINT "This information has been written to BUILD_NOTES.txt"
+PRINT "This information has been written to $INFO_PATH/BUILD_NOTES.txt"
 PRINT ""
 
 # Switch back to user language.

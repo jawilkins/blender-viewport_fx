@@ -26,6 +26,7 @@ set(SRC
 	blender_object.cpp
 	blender_particles.cpp
 	blender_curves.cpp
+	blender_logging.cpp
 	blender_python.cpp
 	blender_session.cpp
 	blender_shader.cpp
@@ -44,6 +45,7 @@ set(ADDON_FILES
 	addon/presets.py
 	addon/properties.py
 	addon/ui.py
+	addon/version_update.py
 )
 
 add_definitions(${GL_DEFINITIONS})

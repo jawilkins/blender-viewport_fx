@@ -769,9 +769,12 @@ void GPU_invalid_tex_bind(int mode)
 
 void GPU_invalid_tex_free(void)
 {
-	GPU_texture_free(GG.invalid_tex_1D);
-	GPU_texture_free(GG.invalid_tex_2D);
-	GPU_texture_free(GG.invalid_tex_3D);
+	if (GG.invalid_tex_1D)
+		GPU_texture_free(GG.invalid_tex_1D);
+	if (GG.invalid_tex_2D)
+		GPU_texture_free(GG.invalid_tex_2D);
+	if (GG.invalid_tex_3D)
+		GPU_texture_free(GG.invalid_tex_3D);
 }
 
 
@@ -920,6 +923,9 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err
 
 	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
 	GG.currentfb = fb->object;
+
+	/* Clean glError buffer. */
+	while (glGetError() != GL_NO_ERROR) {}
 
 	glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, 
 		tex->target, tex->bindcode, 0);
@@ -1224,7 +1230,7 @@ struct GPUShader {
 	int totattrib;   /* total number of attributes */
 };
 
-static void shader_print_log(GLuint object, GLboolean is_program, const char* nickname, const char* kind)
+static void shader_print_log(GLuint object, GLboolean is_program, const char* friendly_name, const char* kind)
 {
 	GLchar* log;
 	GLint log_size = 0;
@@ -1232,7 +1238,7 @@ static void shader_print_log(GLuint object, GLboolean is_program, const char* ni
 	if (is_program)
 		glGetProgramiv(object, GL_INFO_LOG_LENGTH, &log_size);
 	else
-		glGetShaderiv(object, GL_INFO_LOG_LENGTH, &log_size);
+		glGetShaderiv (object, GL_INFO_LOG_LENGTH, &log_size);
 
 	if (log_size > 0) {
 		log = (GLchar*)MEM_mallocN(log_size, "shader_print_log");
@@ -1240,58 +1246,70 @@ static void shader_print_log(GLuint object, GLboolean is_program, const char* ni
 		if (is_program)
 			glGetProgramInfoLog(object, log_size, NULL, log);
 		else
-			glGetShaderInfoLog(object, log_size, NULL, log);
+			glGetShaderInfoLog (object, log_size, NULL, log);
 
 		if (is_program)
-			fprintf(stderr, "Linker Info Log: %s\n%s\n", nickname, log);
+			fprintf(stderr, "GPUShader: Linker Info Log: %s\n%s\n", friendly_name, log);
 		else
-			fprintf(stderr, "%s Shader: %s\nShader Info Log:\n%s\n", kind, nickname, log);
+			fprintf(stderr, "GPUShader: %s Shader: %s\n Shader Info Log:\n%s\n", kind, friendly_name, log);
 
 		MEM_freeN(log);
 	}
 }
 
-static void shader_print_src(GLuint object, GLboolean is_program, const char* nickname, const char *kind, const char **code, int code_count)
+static void shader_print_src(GLuint object, GLboolean is_program, const char* friendly_name, const char *kind, const char **code, int code_count)
 {
 	int total_line = 1;
 
-	if ((G.debug & G_DEBUG) && code_count > 0) {
-		int i = 0;
+	int i = 0;
 
-		fprintf(stderr, "Source Code: %s\n", nickname);
+	fprintf(stderr, "GPUShader: %s Source Code: %s: BEGIN\n", kind, friendly_name);
 
-		for (i = 0; i < code_count; i++) {
-			const char *c= code[i];
-			const char *pos;
-			const char *end = code[i] + strlen(code[i]);
-			int line = 1;
+	for (i = 0; i < code_count; i++) {
+		const char *c= code[i];
+		const char *pos;
+		const char *end = code[i] + strlen(code[i]);
+		int line = 1;
 
-			while ((c < end) && (pos = strchr(c, '\n'))) {
-				fprintf(stderr, "%d:%3d:%3d: ", i, line, total_line);
-				fwrite(c, (pos+1)-c, 1, stderr);
-				c = pos+1;
-				line++;
-				total_line++;
-			}
+		fprintf(stderr, "===== shader string %d ====\n", i + 1);
 
-			fprintf(stderr, "%s", c);
+		while ((c < end) && (pos = strchr(c, '\n'))) {
+			fprintf(stderr, "%d:%3d:%3d: ", i + 1, line, total_line);
+			fwrite(c, (pos+1)-c, 1, stderr);
+			c = pos+1;
+			line++;
+			total_line++;
 		}
+
+		fprintf(stderr, "%s", c);
 	}
+
+	fprintf(stderr, "GPUShader: %s Source Code: %s: END\n", kind, friendly_name);
 }
 
-static bool print_status(GLuint object, GLboolean is_program, const char* nickname, const char* kind, const char** code, int code_count)
+static bool print_status(GLuint object, GLboolean is_program, const char* friendly_name, const char* kind, const char** code, int code_count)
 {
 	GLint status;
 
 	if (is_program)
-		glGetProgramiv(object, GL_LINK_STATUS, &status);
+		glGetProgramiv(object, GL_LINK_STATUS,    &status);
 	else
 		glGetShaderiv (object, GL_COMPILE_STATUS, &status);
 
-	shader_print_src(object, is_program, nickname, kind, code, code_count);
+	if ((G.debug & G_DEBUG) || !status) {
+		const char* result = status ? "Succeeded" : "Failed!";
+
+		if (is_program)
+			fprintf(stderr, "GPUShader: Linking %s: %s\n", result, friendly_name);
+		else
+			fprintf(stderr, "GPUShader: Compilation %s: %s Shader %s\n", result, kind, friendly_name);
+	}
+
+	if ((G.debug & G_DEBUG) && code_count > 0)
+		shader_print_src(object, is_program, friendly_name, kind, code, code_count);
 
 	if ((G.debug & G_DEBUG) || !status)
-		shader_print_log(object, is_program, nickname, kind);
+		shader_print_log(object, is_program, friendly_name, kind);
 
 	return status;
 }
@@ -1324,7 +1342,7 @@ static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH])
 	if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
 		strcat(defines, "#define GPU_ATI\n");
 		if (GLEW_VERSION_3_0)
-			strcat(defines, "#define CLIP_WORKAROUND");
+			strcat(defines, "#define CLIP_WORKAROUND\n");
 	}
 	else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY))
 		strcat(defines, "#define GPU_NVIDIA\n");
@@ -1336,7 +1354,7 @@ static void gpu_shader_standard_defines(char defines[MAX_DEFINE_LENGTH])
 	return;
 }
 
-GPUShader *GPU_shader_create(const char *nickname, const char *vertexcode, const char *fragcode, const char *libcode, const char *defines)
+GPUShader *GPU_shader_create(const char *friendly_name, const char *vertexcode, const char *fragcode, const char *libcode, const char *defines)
 {
 	GLsizei length = 0;
 	GPUShader *shader;
@@ -1381,7 +1399,7 @@ GPUShader *GPU_shader_create(const char *nickname, const char *vertexcode, const
 
 		glCompileShader(shader->vertex);
 
-		if (!print_status(shader->vertex, GL_FALSE, nickname, "Vertex", source, num_source)) {
+		if (!print_status(shader->vertex, GL_FALSE, friendly_name, "Vertex", source, num_source)) {
 			GPU_shader_free(shader);
 			return NULL;
 		}
@@ -1404,7 +1422,7 @@ GPUShader *GPU_shader_create(const char *nickname, const char *vertexcode, const
 
 		glCompileShader(shader->fragment);
 
-		if (!print_status(shader->fragment, GL_FALSE, nickname, "Fragment", source, num_source)) {
+		if (!print_status(shader->fragment, GL_FALSE, friendly_name, "Fragment", source, num_source)) {
 			GPU_shader_free(shader);
 			return NULL;
 		}
@@ -1412,7 +1430,7 @@ GPUShader *GPU_shader_create(const char *nickname, const char *vertexcode, const
 
 	glLinkProgram(shader->object);
 
-	if (!print_status(shader->object, GL_TRUE, nickname, NULL, NULL, 0)) {
+	if (!print_status(shader->object, GL_TRUE, friendly_name, NULL, NULL, 0)) {
 		GPU_shader_free(shader);
 		return NULL;
 	}
