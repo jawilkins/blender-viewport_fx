@@ -65,7 +65,7 @@ bool gpu_report_gl_errors  (const char *__restrict file, int line, char *__restr
 void gpu_debug_print       (const char *format, ... ) ATTR_NONNULL(1) ATTR_PRINTF_FORMAT(1);
 void gpu_state_print       (void);
 void gpu_string_marker     (size_t size, const char *str);
-void gpu_assert_no_gl_errors(const char *__restrict file, int line, const char *__restrict str, bool do_abort);
+bool gpu_assert_no_gl_errors(const char *__restrict file, int line, const char *__restrict str, bool do_abort);
 
 #  define GPU_REPORT_GL_ERRORS(out, size, str) gpu_report_gl_errors(__FILE__, __LINE__, (out), (size), (str), GL_NO_ERROR)
 #  define GPU_TEST_GL_ERROR(str, test)         gpu_report_gl_errors(__FILE__, __LINE__, NULL, 0, (str), (test))
@@ -74,14 +74,23 @@ void gpu_assert_no_gl_errors(const char *__restrict file, int line, const char *
 #  define GPU_STRING_MARKER(size, str)         gpu_string_marker((size), (str))
 #  define GPU_ASSERT_NO_GL_ERRORS(str)         gpu_assert_no_gl_errors(__FILE__, __LINE__, (str), true)
 
-#  define GPU_CHECK(glProcCall)                      \
-       (                                             \
-       GPU_ASSERT_NO_GL_ERROR("Pre: "  #glProcCall), \
-       (glProcCall),                                 \
-       GPU_ASSERT_NO_GL_ERROR("Post: " #glProcCall)  \
+#  define GPU_DEBUG_CHECK(glProcCall)              \
+       (                                           \
+       GPU_REPORT_GL_ERRORS("Pre:  " #glProcCall), \
+       (glProcCall),                               \
+       GPU_REPORT_GL_ERRORS("Post: " #glProcCall)  \
        )
 
-#else /* WITH_GPU_DEBUG */
+#  define GPU_CHECK(glProcCall)                       \
+       (                                              \
+       GPU_ASSERT_NO_GL_ERRORS("Pre:  " #glProcCall), \
+       (glProcCall),                                  \
+       GPU_ASSERT_NO_GL_ERRORS("Post: " #glProcCall)  \
+       )
+
+
+#else /* !WITH_GPU_DEBUG */
+
 
 #  define GPU_ASSERT(test) ((void)0)
 #  define GPU_ABORT()      ((void)0)
@@ -94,7 +103,15 @@ bool gpu_report_gl_errors(char *__restrict out, size_t size, const char *__restr
 #  define GPU_STATE_PRINT()                    ((void)0)
 #  define GPU_STRING_MARKER(len, str)          ((void)(size),(void)(str))
 #  define GPU_ASSERT_NO_GL_ERRORS(str)         ((void)(str))
-#  define GPU_CHECK(glProcCall)                (glProcCall)
+#  define GPU_DEBUG_CHECK(glProcCall)          (glProcCall)
+
+#  define GPU_CHECK(glProcCall)                    \
+       (                                           \
+       GPU_REPORT_GL_ERRORS("Pre:  " #glProcCall), \
+       (glProcCall),                               \
+       GPU_REPORT_GL_ERRORS("Post: " #glProcCall)  \
+       )
+
 
 #endif /* WITH_GPU_DEBUG */
 

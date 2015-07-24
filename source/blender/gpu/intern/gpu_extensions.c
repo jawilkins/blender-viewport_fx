@@ -885,19 +885,13 @@ int GPU_framebuffer_texture_attach(GPUFrameBuffer *fb, GPUTexture *tex, char err
 	if (GG.extdisabled || !MX_framebuffer_object)
 		return 0;
 
-	/* clear errors */
-	GPU_REPORT_GL_ERRORS(NULL, 0, "Pre: GPU_framebuffer_texture_attach");
-
 	if (tex->depth)
 		attachment = GL_DEPTH_ATTACHMENT;
 	else
 		attachment = GL_COLOR_ATTACHMENT0;
 
-	glBindFramebuffer(GL_FRAMEBUFFER, fb->object);
+	GPU_CHECK(glBindFramebuffer(GL_FRAMEBUFFER, fb->object));
 	GG.currentfb = fb->object;
-
-	/* Clean glError buffer. */
-	while (glGetError() != GL_NO_ERROR) {}
 
 	glFramebufferTexture2D(GL_FRAMEBUFFER, attachment, 
 		tex->target, tex->bindcode, 0);

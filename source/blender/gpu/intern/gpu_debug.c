@@ -139,7 +139,7 @@ const char *gpuErrorString(GLenum err)
 		case GL_OUT_OF_MEMORY:
 			return "Out of Memory";
 
-#if GL_ARB_imagining
+#if GL_ARB_imaging
 		case GL_TABLE_TOO_LARGE:
 			return "Table Too Large";
 #endif
@@ -420,11 +420,13 @@ void gpu_debug_print(const char *format, ...)
 }
 
 
-void gpu_assert_no_gl_errors(const char *__restrict file, int line, const char *__restrict str)
+bool gpu_assert_no_gl_errors(const char *__restrict file, int line, const char *__restrict str)
 {
 	GLboolean gl_ok = gpu_report_gl_errors(file, line, str);
 
 	GPU_ASSERT(gl_ok);
+
+	return (bool)gl_ok;
 }
 
 
